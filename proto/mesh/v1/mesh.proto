@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package mesh.v1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "canary-bot/proto/gen/mesh/v1;meshv1";
+
+service MeshService {
+    rpc JoinMesh(JoinMeshRequest) returns (JoinMeshResponse) {}
+    rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc NodeDiscovery(NodeDiscoveryRequest) returns (google.protobuf.Empty) {}
+    rpc PushProbes(Probes) returns (google.protobuf.Empty) {}
+}
+
+message JoinMeshRequest {
+    Node i_am_node = 1;
+}
+
+message JoinMeshResponse {
+    bool name_unique = 1;
+    string my_name = 2;
+    repeated Node nodes = 3;
+}
+
+message NodeDiscoveryRequest {
+    Node new_node = 1;
+    Node i_am_node = 2;
+}
+
+message Node {
+    string name = 1;
+    string target = 2;
+}
+
+message Probes {
+    repeated Probe probes = 1;
+}
+
+message Probe {
+	string from = 1;
+	string to = 2;
+    int64 key = 3;
+    string value = 4;
+    int64 ts = 5;
+}
