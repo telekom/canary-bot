@@ -5,6 +5,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package main
 
 import (
+	"canary-bot/api"
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
 	meshv1 "canary-bot/proto/gen/mesh/v1"
@@ -117,6 +118,14 @@ func run(cmd *cobra.Command, args []string) {
 			// TODO generate random node name
 		}
 	}
+
+	//API Server
+	go func() {
+		logger.Info("Starting API server")
+		if err := api.Run(); err != nil {
+			log.Fatalln(err)
+		}
+	}()
 
 	incomingSigs := make(chan os.Signal, 1)
 	signal.Notify(incomingSigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
