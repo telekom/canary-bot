@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
 import "google/api/annotations.proto";
 
-option go_package = "canary-bot/proto/gen/api/v1;apiv1";
+option go_package = "canary-bot/proto/api/v1;apiv1";
 
 service SampleService {
   rpc ListSamples(ListSampleRequest) returns (stream Sample) {

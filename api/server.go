@@ -10,9 +10,9 @@ import (
 	"os"
 	"sync"
 
-	apiv1 "canary-bot/proto/gen/api/v1"
-	apiv1connect "canary-bot/proto/gen/api/v1/apiv1connect"
-	third_party "canary-bot/proto/third_party"
+	third_party "canary-bot/proto/api/third_party"
+	apiv1 "canary-bot/proto/api/v1"
+	apiv1connect "canary-bot/proto/api/v1/apiv1connect"
 
 	connect "github.com/bufbuild/connect-go"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -33,7 +33,7 @@ type Backend struct {
 func New() *Backend {
 	return &Backend{
 		mu:      &sync.RWMutex{},
-		samples: []*apiv1.Sample{&apiv1.Sample{Id: "1234"}},
+		samples: []*apiv1.Sample{{Id: "1234"}},
 	}
 }
 
@@ -84,6 +84,7 @@ func Run() error {
 			},
 		}),
 	)
+
 	err = apiv1.RegisterSampleServiceHandler(context.Background(), gwmux, conn)
 	if err != nil {
 		return fmt.Errorf("failed to register gateway: %w", err)
