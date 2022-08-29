@@ -38,7 +38,7 @@ Features:
  - mutal TLS enabled
 
 All flags can be set by environment variables. Please use the Prefix ` + envPrefix + `
-Multiple targets can be set comma-seperated.
+Multiple targets can be set comma-separated.
 `,
 	PersistentPreRun: initSettings,
 	Run:              run,
@@ -78,7 +78,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	// prepare in-memory database
-	mData, err := data.NewMemDB(logger)
+	mData, err := data.NewMemDB(logger.Named("database"))
 	if err != nil {
 		logger.Fatalf("Could not create Memory Database (MemDB) - Error: %+v", err)
 	}
@@ -114,6 +114,7 @@ func run(cmd *cobra.Command, args []string) {
 		}
 		if !isNameUniqueInMesh {
 			logger.Fatal("The name is not unique in the mesh, please choose another one.")
+			// TODO generate random node name
 		}
 	}
 

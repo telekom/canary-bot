@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
-	"log"
 	"net"
 	"strconv"
 
@@ -29,8 +28,10 @@ type MeshServer struct {
 }
 
 func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.JoinMeshRequest) (*meshv1.JoinMeshResponse, error) {
-	// Check if name of joining node is unique in mesh
-	if s.data.GetNodeByName(req.IAmNode.Name).Id != 0 || *s.name == req.IAmNode.Name {
+	s.log.Infow("New join mesh request", "node", req.IAmNode.Name)
+	// Check if name of joining node is unique in mesh, let join if state is not ok
+	dbnode := s.data.GetNodeByName(req.IAmNode.Name)
+	if (dbnode.Id != 0 && dbnode.State == NODE_OK) || *s.name == req.IAmNode.Name {
 		return &meshv1.JoinMeshResponse{NameUnique: false, MyName: *s.name, Nodes: []*meshv1.Node{}}, nil
 	}
 	s.newNodeDiscovered <- NodeDiscovered{req.IAmNode, GetId(req.IAmNode)}
@@ -64,15 +65,13 @@ func (s *MeshServer) PushProbes(ctx context.Context, req *meshv1.Probes) (*empty
 			})
 		}
 	}
-	log.Println("SERVER GOT REQUEST")
-	log.Printf("Safe probes: %+v", req.Probes)
-	log.Printf("All my now probes: %+v", s.data.GetProbeList())
+	s.log.Debugw("Safe probes", "count", len(s.data.GetProbeList()))
 	return &emptypb.Empty{}, nil
 }
 
 func (m *Mesh) StartServer() error {
 	meshServer := &MeshServer{
-		log:               m.log,
+		log:               m.log.Named("server"),
 		data:              &m.database,
 		name:              &m.config.StartupSettings.Name,
 		newNodeDiscovered: m.newNodeDiscovered,
@@ -80,7 +79,7 @@ func (m *Mesh) StartServer() error {
 
 	listenAdd := m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10)
 
-	m.log.Infof("Start listening to %+v\n", listenAdd)
+	meshServer.log.Infow("Start listening", "address", listenAdd)
 	lis, err := net.Listen("tcp", listenAdd)
 	if err != nil {
 		return err
@@ -96,8 +95,8 @@ func (m *Mesh) StartServer() error {
 		m.config.StartupSettings.ServerKey,
 	)
 	if err != nil {
-		m.log.Warnf("Cannot load TLS credentials - using insecure connection")
-		m.log.Debugf("Cannot load TLS credentials - err: %v", err)
+		meshServer.log.Warnw("Cannot load TLS credentials - using insecure connection")
+		meshServer.log.Debugw("Cannot load TLS credentials", "error", err.Error())
 	}
 
 	if tlsCredentials != nil {

@@ -106,6 +106,8 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 		}
 	}()
 
+	m.log.Infow("Starting routines")
+
 	go m.channelRoutines()
 
 	go m.timerRoutines()
@@ -125,32 +127,34 @@ func (m *Mesh) timerRoutines() {
 	for {
 		select {
 		case <-pingTicker.C:
-			m.log.Debug("Starting Ping Routine")
+			log := m.log.Named("ping-routine")
+			log.Debugw("Starting")
 			nodes := m.database.GetNodeListByState(NODE_OK)
 			if nodes == nil {
-				m.log.Debug("No Node connected or all nodes in timeout")
+				log.Debugw("No Node connected or all nodes in timeout")
 				break
 			}
 
 			go m.RetryPing(context.Background(), nodes[rand.Intn(len(nodes))].Convert(), m.config.PingRetryAmount, m.config.PingRetryDelay, false)
 
 		case <-pushProbeTicker.C:
-			m.log.Debugf("Starting push probe routine to %v random nodes", m.config.PushProbeToAmount)
+			log := m.log.Named("probe-routine")
+			log.Debugw("Starting push probe routine to random nodes", "amount", m.config.PushProbeToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 			if nodes == nil {
-				m.log.Debug("No Node connected or all nodes in timeout")
+				log.Debugw("No Node connected or all nodes in timeout")
 				break
 			}
 
 			for broadcastCount := 0; broadcastCount < m.config.PushProbeToAmount; broadcastCount++ {
 				if len(nodes) <= 0 {
-					m.log.Debug("Stopping routine prematurely - no more known nodes")
+					log.Debug("Stopping routine prematurely - no more known nodes")
 					break
 				}
 				randomIndex := rand.Intn(len(nodes))
 				randomNode := nodes[randomIndex]
 
-				m.log.Infof("Pushing probes to %+v", randomNode.Name)
+				log.Debugw("Pushing probes", "node", randomNode.Name)
 				go m.RetryPushProbe(context.Background(), randomNode.Convert(), m.config.PushProbeRetryAmount, m.config.PushProbeRetryDelay)
 
 				// Remove node already started broadcast to from list
@@ -172,14 +176,15 @@ func (m *Mesh) channelRoutines() {
 	for {
 		select {
 		case nodeDiscovered := <-m.newNodeDiscovered:
-			if m.database.GetNode(GetId(nodeDiscovered.NewNode)).Id != 0 {
-				m.log.Debug("Node joined - already known")
+			log := m.log.Named("discovery-routine")
+			if m.database.GetNodeByName(nodeDiscovered.NewNode.Name).Id != 0 {
+				log.Info("Node is rejoining node")
 				m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
 				break
 			}
-			m.log.Debug("Node joined - new node")
+			log.Debug("Node joined - new node")
 
-			m.log.Debugf("Starting discovery broadcast routine to %v random nodes", m.config.BroadcastToAmount)
+			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.config.BroadcastToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 
 			// Remove node from list that sent the discovery request
@@ -192,13 +197,13 @@ func (m *Mesh) channelRoutines() {
 
 			for broadcastCount := 0; broadcastCount < m.config.BroadcastToAmount; broadcastCount++ {
 				if len(nodes) <= 0 {
-					m.log.Debug("Stopping routine prematurely - no more known nodes")
+					log.Debug("Stopping routine prematurely - no more known nodes")
 					break
 				}
 				randomIndex := rand.Intn(len(nodes))
 				randomNode := nodes[randomIndex]
 
-				m.log.Infof("Sending Discovery Broadcast to %+v", randomNode)
+				log.Infow("Sending Discovery Broadcast", "node", randomNode.Name)
 				go m.NodeDiscovery(randomNode.Convert(), nodeDiscovered.NewNode)
 
 				// Remove node already started broadcast to from list
@@ -209,8 +214,9 @@ func (m *Mesh) channelRoutines() {
 
 			m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
 		case node := <-m.timeoutNode:
+			log := m.log.Named("ping-routine")
 			m.database.SetNode(data.Convert(node, NODE_TIMEOUT_RETRY))
-			m.log.Debugf("Start Timeout Retry Routine in %v", m.config.TimeoutRetryPause.String())
+			log.Debugw("Start Timeout Retry Routine", "delay", m.config.TimeoutRetryPause.String())
 			go func() {
 				time.Sleep(m.config.TimeoutRetryPause)
 				m.RetryPing(context.Background(), node, m.config.TimeoutRetryAmount, m.config.TimeoutRetryDelay, true)
@@ -220,7 +226,8 @@ func (m *Mesh) channelRoutines() {
 }
 
 func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration, timedOut bool) {
-	m.log.Infof("Ping retry routine started for: %+v", node)
+	log := m.log.Named("ping-routine")
+	log.Debugw("Retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
 		rtt, err := m.Ping(node)
 
@@ -236,16 +243,16 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 
 		if err == nil || r >= retries {
 			if err != nil {
-				m.log.Warnf("Ping retry timeout - limit (%+v) reached for %+v", retries, node)
+				log.Warnw("Retry timeout - limit reached", "node", node.Name, "limit", retries)
 				if !timedOut {
 					m.database.SetNode(data.Convert(node, NODE_TIMEOUT))
 					m.timeoutNode <- node
 				} else {
 					m.database.DeleteNode(GetId(node))
-					m.log.Warnf("Removed node from mesh")
+					log.Warnw("Removed node from mesh", "node", node.Name)
 				}
 			} else {
-				m.log.Info("Ping ok")
+				log.Infow("Ping ok", "node", node.Name)
 			}
 			break
 		}
@@ -253,35 +260,36 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 		if !timedOut {
 			m.database.SetNode(data.Convert(node, NODE_RETRY))
 		}
-		m.log.Debugf("... retrying in %v for %+v", delay, m.database.GetNode(GetId(node)))
+		log.Debugw("Retrying", "node", m.database.GetNode(GetId(node)).Name, "delay", delay)
 		select {
 		case <-time.After(delay):
 		case <-ctx.Done():
-			m.log.Warnf("Ping retry context error: %+v", ctx.Err())
+			log.Warnw("Context error", "error", ctx.Err().Error())
 		}
 	}
 }
 
 func (m *Mesh) RetryPushProbe(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration) {
-	m.log.Infof("Push probe retry routine started to %+v", node.Name)
+	log := m.log.Named("probe-routine")
+	log.Debugw("Push probe retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
 		err := m.PushProbes(node)
 
 		if err == nil || r >= retries {
 			if err != nil {
-				m.log.Warnf("Push probe retry timeout - limit (%+v) reached for %+v", retries, node)
+				log.Debugw("Push probe retry timeout - limit reached", "node", node.Name, "limit", retries)
 			} else {
-				m.log.Debug("Push probe routine ok")
+				log.Debug("Push probes ok")
 			}
 			m.database.SetNodeTsNow(GetId(node))
 			break
 		}
 
-		m.log.Debugf("... retrying in %v to %+v", delay, node.Name)
+		log.Debugw("Retrying", "node", node.Name, "delay", delay)
 		select {
 		case <-time.After(delay):
 		case <-ctx.Done():
-			m.log.Warnf("Push probe retry context error: %+v", ctx.Err())
+			log.Warnw("Push probe retry context error", "error", ctx.Err())
 		}
 	}
 }

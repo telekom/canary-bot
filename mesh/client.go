@@ -26,17 +26,18 @@ type MeshClient struct {
 
 //bool NameUnique
 func (m *Mesh) Join(to []*meshv1.Node) (bool, error) {
+	log := m.log.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
-	m.log.Debugf("Starting Join routine")
+	log.Debugw("Starting")
 
 	for index, node := range to {
 		err := m.initClient(node)
 		if err != nil {
 			if index != len(to)-1 {
-				m.log.Debugf("Trying next node to join - err: %+v", err)
+				log.Debugw("Trying next node", "error", err)
 				continue
 			}
-			m.log.Debugf("Error: %+v", err)
+			log.Debugw("Error", "error", err)
 			return true, err
 		}
 
@@ -49,7 +50,7 @@ func (m *Mesh) Join(to []*meshv1.Node) (bool, error) {
 
 		if err != nil {
 			if index != len(to)-1 {
-				m.log.Debugf("Trying next node to join - err: %+v", err)
+				log.Debugw("Trying next node", "error", err)
 				continue
 			}
 			m.log.Debugf("Error: %+v", err)
@@ -58,7 +59,7 @@ func (m *Mesh) Join(to []*meshv1.Node) (bool, error) {
 
 		// check if name of node is unique in mesh response
 		if !res.NameUnique {
-			m.log.Debugf("Join response - node name is not unique in mesh")
+			log.Debugw("Node name is not unique in mesh")
 			return false, nil
 		}
 
@@ -79,16 +80,17 @@ func (m *Mesh) Join(to []*meshv1.Node) (bool, error) {
 }
 
 func (m *Mesh) Ping(node *meshv1.Node) (time.Duration, error) {
+	log := m.log.Named("ping-routine")
 	err := m.initClient(node)
 	if err != nil {
-		m.log.Debugf("Could not connect to client!")
+		log.Debugw("Could not connect to client")
 		return -1, err
 	}
 	timeStart := time.Now()
 	_, err = m.clients[GetId(node)].client.Ping(context.Background(), &emptypb.Empty{})
 	timeEnd := time.Now()
 	if err != nil {
-		m.log.Debugf("Ping failed.")
+		log.Debugw("Ping failed")
 		return -1, err
 	}
 	rtt := timeEnd.Sub(timeStart)
@@ -97,9 +99,10 @@ func (m *Mesh) Ping(node *meshv1.Node) (time.Duration, error) {
 }
 
 func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
+	log := m.log.Named("discovery-routine")
 	err := m.initClient(toNode)
 	if err != nil {
-		m.log.Warnf("Could not connect to client - skip Node Discover Request to %+v", toNode.Name)
+		log.Warnw("Could not connect to client - skip Node Discover Request", "node", toNode.Name)
 		return
 	}
 	_, err = m.clients[GetId(toNode)].client.NodeDiscovery(
@@ -111,22 +114,23 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 				Target: m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10),
 			}})
 	if err != nil {
-		m.log.Warnf("Could not start request to client - skip Node Discover Request to %+v - err: %+v", toNode.Name, err)
+		log.Warnf("Could not start request to client - skip Node Discover Request", "node", toNode.Name, "error", err)
 	}
 	return
 }
 
 func (m *Mesh) PushProbes(node *meshv1.Node) error {
+	log := m.log.Named("probe-routine")
 	err := m.initClient(node)
 	if err != nil {
-		m.log.Debugf("Could not connect to client!")
+		log.Debugw("Could not connect to client")
 		return err
 	}
 
 	var probes []*meshv1.Probe
 	databaseProbes := m.database.GetProbeList()
 	if len(databaseProbes) == 0 {
-		m.log.Debugf("No probes found for push - will not push")
+		log.Debugw("No probes found for push - will not push")
 		return nil
 	}
 	for _, probe := range m.database.GetProbeList() {
@@ -135,7 +139,7 @@ func (m *Mesh) PushProbes(node *meshv1.Node) error {
 
 	_, err = m.clients[GetId(node)].client.PushProbes(context.Background(), &meshv1.Probes{Probes: probes})
 	if err != nil {
-		m.log.Debugf("Could not send probes - err: %+v", err)
+		log.Debugw("Could not send probes", "error", err)
 		return err
 	}
 	return nil
@@ -143,8 +147,8 @@ func (m *Mesh) PushProbes(node *meshv1.Node) error {
 
 func (m *Mesh) initClient(to *meshv1.Node) error {
 	nodeId := GetId(to)
-
-	m.log.Debug("Init Client routine")
+	log := m.log.Named("client")
+	log.Debugw("Init client")
 
 	if _, exists := m.clients[nodeId]; !exists {
 		var opts []grpc.DialOption
@@ -152,7 +156,7 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 		// TLS
 		tlsCredentials, err := loadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
 		if err != nil {
-			m.log.Debug("Cannot load TLS credentials - starting insecure connection: ", err)
+			log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
 			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		} else {
 			opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
@@ -160,7 +164,7 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 
 		conn, err := grpc.Dial(to.Target, opts...)
 		if err != nil {
-			m.log.Debugf("Error: %+v", err)
+			log.Debugw("Dial error", "error", err)
 			return err
 		}
 
@@ -173,7 +177,7 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 		}
 		m.mu.Unlock()
 	} else {
-		m.log.Debug("Client already existed")
+		log.Debugw("Client already existed")
 	}
 	return nil
 }
