@@ -2,7 +2,7 @@ package data
 
 import (
 	h "canary-bot/helper"
-	meshv1 "canary-bot/proto/gen/mesh/v1"
+	meshv1 "canary-bot/proto/mesh/v1"
 	"strconv"
 	"time"
 

@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"canary-bot/data"
-	meshv1 "canary-bot/proto/gen/mesh/v1"
+	meshv1 "canary-bot/proto/mesh/v1"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

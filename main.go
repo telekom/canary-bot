@@ -8,7 +8,7 @@ import (
 	"canary-bot/api"
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
-	meshv1 "canary-bot/proto/gen/mesh/v1"
+	meshv1 "canary-bot/proto/mesh/v1"
 	"fmt"
 	"log"
 	"os"

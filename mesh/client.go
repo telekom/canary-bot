@@ -2,7 +2,7 @@ package mesh
 
 import (
 	"canary-bot/data"
-	meshv1 "canary-bot/proto/gen/mesh/v1"
+	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
