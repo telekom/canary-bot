@@ -11,9 +11,14 @@ import (
 )
 
 const (
-	STATE = 0
-	RTT   = 1
+	STATE = 1
+	RTT   = 2
 )
+
+var SampleName = map[int64]string{
+	STATE: "state",
+	RTT:   "rtt",
+}
 
 type Database struct {
 	*memdb.MemDB

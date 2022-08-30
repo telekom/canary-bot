@@ -20,5 +20,9 @@ message ListSampleRequest {}
 
 message Sample {
   // Id uniquely identifies a user. Output only.
-  string id = 1;
+  string from = 1;
+  string to = 2;
+  string sample = 3;
+  string value = 4;
+  string ts = 5;
 }

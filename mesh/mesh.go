@@ -56,6 +56,9 @@ type Settings struct {
 	ListenAddress string
 	ListenPort    int64
 
+	// API
+	ApiPort int64
+
 	// TLS server side
 	ServerCertPath string
 	ServerKeyPath  string

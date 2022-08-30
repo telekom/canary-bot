@@ -79,10 +79,22 @@
     "v1Sample": {
       "type": "object",
       "properties": {
-        "id": {
+        "from": {
           "type": "string",
           "description": "Id uniquely identifies a user. Output only.",
           "readOnly": true
+        },
+        "to": {
+          "type": "string"
+        },
+        "sample": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "ts": {
+          "type": "string"
         }
       }
     }

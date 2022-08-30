@@ -119,13 +119,10 @@ func run(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	//API Server
-	go func() {
-		logger.Info("Starting API server")
-		if err := api.Run(); err != nil {
-			log.Fatalln(err)
-		}
-	}()
+	// start API
+	if err = api.NewApi(mData, set, logger.Named("api")); err != nil {
+		logger.Fatal("Could not start API - Error: %+v", err)
+	}
 
 	incomingSigs := make(chan os.Signal, 1)
 	signal.Notify(incomingSigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
@@ -147,6 +144,7 @@ func init() {
 		Name:           "",
 		ListenAddress:  "",
 		ListenPort:     8081,
+		ApiPort:        8080,
 		ServerCertPath: "",
 		ServerKeyPath:  "",
 		ServerCert:     nil,
@@ -163,6 +161,9 @@ func init() {
 	cmd.Flags().StringVarP(&set.Name, "name", "n", defaults.Name, "Name of the node, has to be unique in mesh")
 	cmd.Flags().StringVarP(&set.ListenAddress, "address", "a", defaults.ListenAddress, "Domain (or IP) of this node")
 	cmd.Flags().Int64VarP(&set.ListenPort, "listen-port", "l", defaults.ListenPort, "Listening port of this node")
+
+	// API
+	cmd.Flags().Int64VarP(&set.ApiPort, "api-port", "p", defaults.ApiPort, "API port of this node")
 
 	// TLS server side
 	cmd.Flags().StringVar(&set.ServerCertPath, "server-cert-path", defaults.ServerCertPath, "Path to the server cert file e.g. cert/server-cert.pem - use with server-key-path to enable TLS")
