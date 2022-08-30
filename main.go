@@ -86,17 +86,17 @@ func run(cmd *cobra.Command, args []string) {
 
 	// prepare mesh
 	m, err := mesh.NewMesh(mData, &mesh.Config{
-		PingInterval:         time.Second * 10,
-		PingRetryAmount:      3,
-		PingRetryDelay:       time.Second * 5,
-		TimeoutRetryPause:    time.Second * 5,
-		TimeoutRetryAmount:   3,
-		TimeoutRetryDelay:    time.Second * 5,
-		BroadcastToAmount:    2,
-		PushProbeInterval:    time.Second * 5,
-		PushProbeToAmount:    1,
-		PushProbeRetryAmount: 2,
-		PushProbeRetryDelay:  time.Second * 1,
+		PingInterval:          time.Second * 10,
+		PingRetryAmount:       3,
+		PingRetryDelay:        time.Second * 5,
+		TimeoutRetryPause:     time.Second * 5,
+		TimeoutRetryAmount:    3,
+		TimeoutRetryDelay:     time.Second * 5,
+		BroadcastToAmount:     2,
+		PushSampleInterval:    time.Second * 5,
+		PushSampleToAmount:    1,
+		PushSampleRetryAmount: 2,
+		PushSampleRetryDelay:  time.Second * 1,
 
 		StartupSettings: set,
 	}, logger)

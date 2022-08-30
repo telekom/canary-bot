@@ -37,8 +37,8 @@ type Api struct {
 func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest], srv *connect.ServerStream[apiv1.Sample]) error {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	b.data.GetProbeList()
-	for _, sample := range b.data.GetProbeList() {
+	b.data.GetSampleList()
+	for _, sample := range b.data.GetSampleList() {
 		err := srv.Send(
 			&apiv1.Sample{
 				From:   sample.From,
@@ -75,6 +75,7 @@ func NewApi(data data.Database, set mesh.Settings, log *zap.SugaredLogger) error
 	}
 
 	addr := set.ListenAddress + ":" + strconv.FormatInt(set.ApiPort, 10)
+
 	// Note: this will succeed asynchronously, once we've started the server below.
 	conn, err := grpc.DialContext(
 		context.Background(),

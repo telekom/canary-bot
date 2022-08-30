@@ -37,11 +37,11 @@ type Config struct {
 	// Node discovery
 	BroadcastToAmount int
 
-	// Push probes
-	PushProbeInterval    time.Duration
-	PushProbeToAmount    int
-	PushProbeRetryAmount int
-	PushProbeRetryDelay  time.Duration
+	// Push samples
+	PushSampleInterval    time.Duration
+	PushSampleToAmount    int
+	PushSampleRetryAmount int
+	PushSampleRetryDelay  time.Duration
 
 	// User settings from flags and env vars
 	StartupSettings Settings
@@ -121,8 +121,8 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 func (m *Mesh) timerRoutines() {
 	// Timer to send ping to node
 	pingTicker := time.NewTicker(m.config.PingInterval)
-	// Timer to send probes to node
-	pushProbeTicker := time.NewTicker(m.config.PushProbeInterval)
+	// Timer to send samples to node
+	pushSampleTicker := time.NewTicker(m.config.PushSampleInterval)
 
 	// Not used
 	quit := make(chan struct{})
@@ -140,16 +140,16 @@ func (m *Mesh) timerRoutines() {
 
 			go m.RetryPing(context.Background(), nodes[rand.Intn(len(nodes))].Convert(), m.config.PingRetryAmount, m.config.PingRetryDelay, false)
 
-		case <-pushProbeTicker.C:
-			log := m.log.Named("probe-routine")
-			log.Debugw("Starting push probe routine to random nodes", "amount", m.config.PushProbeToAmount)
+		case <-pushSampleTicker.C:
+			log := m.log.Named("sample-routine")
+			log.Debugw("Starting push sample routine to random nodes", "amount", m.config.PushSampleToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 			if nodes == nil {
 				log.Debugw("No Node connected or all nodes in timeout")
 				break
 			}
 
-			for broadcastCount := 0; broadcastCount < m.config.PushProbeToAmount; broadcastCount++ {
+			for broadcastCount := 0; broadcastCount < m.config.PushSampleToAmount; broadcastCount++ {
 				if len(nodes) <= 0 {
 					log.Debug("Stopping routine prematurely - no more known nodes")
 					break
@@ -157,8 +157,8 @@ func (m *Mesh) timerRoutines() {
 				randomIndex := rand.Intn(len(nodes))
 				randomNode := nodes[randomIndex]
 
-				log.Debugw("Pushing probes", "node", randomNode.Name)
-				go m.RetryPushProbe(context.Background(), randomNode.Convert(), m.config.PushProbeRetryAmount, m.config.PushProbeRetryDelay)
+				log.Debugw("Pushing samples", "node", randomNode.Name)
+				go m.RetryPushSample(context.Background(), randomNode.Convert(), m.config.PushSampleRetryAmount, m.config.PushSampleRetryDelay)
 
 				// Remove node already started broadcast to from list
 				nodes[randomIndex] = nodes[len(nodes)-1]
@@ -169,7 +169,7 @@ func (m *Mesh) timerRoutines() {
 		case <-quit:
 			// Not used
 			pingTicker.Stop()
-			pushProbeTicker.Stop()
+			pushSampleTicker.Stop()
 			return
 		}
 	}
@@ -234,8 +234,8 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 	for r := 0; ; r++ {
 		rtt, err := m.Ping(node)
 
-		m.database.SetProbe(
-			&data.Probe{
+		m.database.SetSample(
+			&data.Sample{
 				From:  m.config.StartupSettings.Name,
 				To:    node.Name,
 				Key:   data.RTT,
@@ -272,17 +272,17 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 	}
 }
 
-func (m *Mesh) RetryPushProbe(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration) {
-	log := m.log.Named("probe-routine")
-	log.Debugw("Push probe retry routine started", "node", node.Name)
+func (m *Mesh) RetryPushSample(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration) {
+	log := m.log.Named("sample-routine")
+	log.Debugw("Push sample retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
-		err := m.PushProbes(node)
+		err := m.PushSamples(node)
 
 		if err == nil || r >= retries {
 			if err != nil {
-				log.Debugw("Push probe retry timeout - limit reached", "node", node.Name, "limit", retries)
+				log.Debugw("Push sample retry timeout - limit reached", "node", node.Name, "limit", retries)
 			} else {
-				log.Debug("Push probes ok")
+				log.Debug("Push samples ok")
 			}
 			m.database.SetNodeTsNow(GetId(node))
 			break
@@ -292,7 +292,7 @@ func (m *Mesh) RetryPushProbe(ctx context.Context, node *meshv1.Node, retries in
 		select {
 		case <-time.After(delay):
 		case <-ctx.Done():
-			log.Warnw("Push probe retry context error", "error", ctx.Err())
+			log.Warnw("Push sample retry context error", "error", ctx.Err())
 		}
 	}
 }
@@ -301,6 +301,6 @@ func GetId(n *meshv1.Node) uint32 {
 	return h.Hash(n.Target)
 }
 
-func GetProbeId(p *meshv1.Probe) uint32 {
+func GetSampleId(p *meshv1.Sample) uint32 {
 	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
 }

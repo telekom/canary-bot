@@ -26,7 +26,7 @@ type MeshServiceClient interface {
 	JoinMesh(ctx context.Context, in *JoinMeshRequest, opts ...grpc.CallOption) (*JoinMeshResponse, error)
 	Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	NodeDiscovery(ctx context.Context, in *NodeDiscoveryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	PushProbes(ctx context.Context, in *Probes, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	PushSamples(ctx context.Context, in *Samples, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type meshServiceClient struct {
@@ -64,9 +64,9 @@ func (c *meshServiceClient) NodeDiscovery(ctx context.Context, in *NodeDiscovery
 	return out, nil
 }
 
-func (c *meshServiceClient) PushProbes(ctx context.Context, in *Probes, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *meshServiceClient) PushSamples(ctx context.Context, in *Samples, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/mesh.v1.MeshService/PushProbes", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mesh.v1.MeshService/PushSamples", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ type MeshServiceServer interface {
 	JoinMesh(context.Context, *JoinMeshRequest) (*JoinMeshResponse, error)
 	Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	NodeDiscovery(context.Context, *NodeDiscoveryRequest) (*emptypb.Empty, error)
-	PushProbes(context.Context, *Probes) (*emptypb.Empty, error)
+	PushSamples(context.Context, *Samples) (*emptypb.Empty, error)
 	mustEmbedUnimplementedMeshServiceServer()
 }
 
@@ -97,8 +97,8 @@ func (UnimplementedMeshServiceServer) Ping(context.Context, *emptypb.Empty) (*em
 func (UnimplementedMeshServiceServer) NodeDiscovery(context.Context, *NodeDiscoveryRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NodeDiscovery not implemented")
 }
-func (UnimplementedMeshServiceServer) PushProbes(context.Context, *Probes) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PushProbes not implemented")
+func (UnimplementedMeshServiceServer) PushSamples(context.Context, *Samples) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushSamples not implemented")
 }
 func (UnimplementedMeshServiceServer) mustEmbedUnimplementedMeshServiceServer() {}
 
@@ -167,20 +167,20 @@ func _MeshService_NodeDiscovery_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MeshService_PushProbes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Probes)
+func _MeshService_PushSamples_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Samples)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MeshServiceServer).PushProbes(ctx, in)
+		return srv.(MeshServiceServer).PushSamples(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mesh.v1.MeshService/PushProbes",
+		FullMethod: "/mesh.v1.MeshService/PushSamples",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MeshServiceServer).PushProbes(ctx, req.(*Probes))
+		return srv.(MeshServiceServer).PushSamples(ctx, req.(*Samples))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -205,8 +205,8 @@ var MeshService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MeshService_NodeDiscovery_Handler,
 		},
 		{
-			MethodName: "PushProbes",
-			Handler:    _MeshService_PushProbes_Handler,
+			MethodName: "PushSamples",
+			Handler:    _MeshService_PushSamples_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

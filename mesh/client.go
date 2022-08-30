@@ -119,27 +119,27 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 	return
 }
 
-func (m *Mesh) PushProbes(node *meshv1.Node) error {
-	log := m.log.Named("probe-routine")
+func (m *Mesh) PushSamples(node *meshv1.Node) error {
+	log := m.log.Named("sample-routine")
 	err := m.initClient(node)
 	if err != nil {
 		log.Debugw("Could not connect to client")
 		return err
 	}
 
-	var probes []*meshv1.Probe
-	databaseProbes := m.database.GetProbeList()
-	if len(databaseProbes) == 0 {
-		log.Debugw("No probes found for push - will not push")
+	var samples []*meshv1.Sample
+	databaseSamples := m.database.GetSampleList()
+	if len(databaseSamples) == 0 {
+		log.Debugw("No samples found for push - will not push")
 		return nil
 	}
-	for _, probe := range m.database.GetProbeList() {
-		probes = append(probes, &meshv1.Probe{From: probe.From, To: probe.To, Key: probe.Key, Value: probe.Value, Ts: probe.Ts})
+	for _, sample := range m.database.GetSampleList() {
+		samples = append(samples, &meshv1.Sample{From: sample.From, To: sample.To, Key: sample.Key, Value: sample.Value, Ts: sample.Ts})
 	}
 
-	_, err = m.clients[GetId(node)].client.PushProbes(context.Background(), &meshv1.Probes{Probes: probes})
+	_, err = m.clients[GetId(node)].client.PushSamples(context.Background(), &meshv1.Samples{Samples: samples})
 	if err != nil {
-		log.Debugw("Could not send probes", "error", err)
+		log.Debugw("Could not send samples", "error", err)
 		return err
 	}
 	return nil

@@ -53,19 +53,19 @@ func (s *MeshServer) NodeDiscovery(ctx context.Context, req *meshv1.NodeDiscover
 	return &emptypb.Empty{}, nil
 }
 
-func (s *MeshServer) PushProbes(ctx context.Context, req *meshv1.Probes) (*emptypb.Empty, error) {
-	for _, probe := range req.Probes {
-		if probe.Ts > s.data.GetProbeTs(GetProbeId(probe)) {
-			s.data.SetProbe(&data.Probe{
-				From:  probe.From,
-				To:    probe.To,
-				Key:   probe.Key,
-				Value: probe.Value,
-				Ts:    probe.Ts,
+func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emptypb.Empty, error) {
+	for _, sample := range req.Samples {
+		if sample.Ts > s.data.GetSampleTs(GetSampleId(sample)) {
+			s.data.SetSample(&data.Sample{
+				From:  sample.From,
+				To:    sample.To,
+				Key:   sample.Key,
+				Value: sample.Value,
+				Ts:    sample.Ts,
 			})
 		}
 	}
-	s.log.Debugw("Safe probes", "count", len(s.data.GetProbeList()))
+	s.log.Debugw("Safe samples", "count", len(s.data.GetSampleList()))
 	return &emptypb.Empty{}, nil
 }
 
