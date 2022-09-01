@@ -26,3 +26,14 @@ go tool pprof -http=:8082 http://localhost:6060/debug/pprof/profile
 
 # Remote Debug
 dlv debug --listen=:8088 --headless
+
+
+# API gRPC
+grpcurl -import-path proto/api/v1  -proto api.proto -cacert cert/ca-cert.pem localhost:8080 api.v1.SampleService/ListSamples
+
+https://test-max-bot1.caas-t02.telekom.de/api/v1/
+
+
+go run main.go -a localhost -p 8095 -l 8096 -n second -t localhost:8081
+
+TTL basiert 

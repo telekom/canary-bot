@@ -27,7 +27,7 @@ const (
 
 // SampleServiceClient is a client for the api.v1.SampleService service.
 type SampleServiceClient interface {
-	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.ServerStreamForClient[v1.Sample], error)
+	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error)
 }
 
 // NewSampleServiceClient constructs a client for the api.v1.SampleService service. By default, it
@@ -40,7 +40,7 @@ type SampleServiceClient interface {
 func NewSampleServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts ...connect_go.ClientOption) SampleServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &sampleServiceClient{
-		listSamples: connect_go.NewClient[v1.ListSampleRequest, v1.Sample](
+		listSamples: connect_go.NewClient[v1.ListSampleRequest, v1.ListSampleResponse](
 			httpClient,
 			baseURL+"/api.v1.SampleService/ListSamples",
 			opts...,
@@ -50,17 +50,17 @@ func NewSampleServiceClient(httpClient connect_go.HTTPClient, baseURL string, op
 
 // sampleServiceClient implements SampleServiceClient.
 type sampleServiceClient struct {
-	listSamples *connect_go.Client[v1.ListSampleRequest, v1.Sample]
+	listSamples *connect_go.Client[v1.ListSampleRequest, v1.ListSampleResponse]
 }
 
 // ListSamples calls api.v1.SampleService.ListSamples.
-func (c *sampleServiceClient) ListSamples(ctx context.Context, req *connect_go.Request[v1.ListSampleRequest]) (*connect_go.ServerStreamForClient[v1.Sample], error) {
-	return c.listSamples.CallServerStream(ctx, req)
+func (c *sampleServiceClient) ListSamples(ctx context.Context, req *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error) {
+	return c.listSamples.CallUnary(ctx, req)
 }
 
 // SampleServiceHandler is an implementation of the api.v1.SampleService service.
 type SampleServiceHandler interface {
-	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest], *connect_go.ServerStream[v1.Sample]) error
+	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error)
 }
 
 // NewSampleServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -70,7 +70,7 @@ type SampleServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewSampleServiceHandler(svc SampleServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
 	mux := http.NewServeMux()
-	mux.Handle("/api.v1.SampleService/ListSamples", connect_go.NewServerStreamHandler(
+	mux.Handle("/api.v1.SampleService/ListSamples", connect_go.NewUnaryHandler(
 		"/api.v1.SampleService/ListSamples",
 		svc.ListSamples,
 		opts...,
@@ -81,6 +81,6 @@ func NewSampleServiceHandler(svc SampleServiceHandler, opts ...connect_go.Handle
 // UnimplementedSampleServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedSampleServiceHandler struct{}
 
-func (UnimplementedSampleServiceHandler) ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest], *connect_go.ServerStream[v1.Sample]) error {
-	return connect_go.NewError(connect_go.CodeUnimplemented, errors.New("api.v1.SampleService.ListSamples is not implemented"))
+func (UnimplementedSampleServiceHandler) ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("api.v1.SampleService.ListSamples is not implemented"))
 }

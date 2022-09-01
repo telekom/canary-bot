@@ -31,20 +31,21 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 var _ = metadata.Join
 
-func request_SampleService_ListSamples_0(ctx context.Context, marshaler runtime.Marshaler, client SampleServiceClient, req *http.Request, pathParams map[string]string) (SampleService_ListSamplesClient, runtime.ServerMetadata, error) {
+func request_SampleService_ListSamples_0(ctx context.Context, marshaler runtime.Marshaler, client SampleServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq ListSampleRequest
 	var metadata runtime.ServerMetadata
 
-	stream, err := client.ListSamples(ctx, &protoReq)
-	if err != nil {
-		return nil, metadata, err
-	}
-	header, err := stream.Header()
-	if err != nil {
-		return nil, metadata, err
-	}
-	metadata.HeaderMD = header
-	return stream, metadata, nil
+	msg, err := client.ListSamples(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_SampleService_ListSamples_0(ctx context.Context, marshaler runtime.Marshaler, server SampleServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ListSampleRequest
+	var metadata runtime.ServerMetadata
+
+	msg, err := server.ListSamples(ctx, &protoReq)
+	return msg, metadata, err
 
 }
 
@@ -55,10 +56,28 @@ func request_SampleService_ListSamples_0(ctx context.Context, marshaler runtime.
 func RegisterSampleServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server SampleServiceServer) error {
 
 	mux.Handle("GET", pattern_SampleService_ListSamples_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
-		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-		return
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/api.v1.SampleService/ListSamples", runtime.WithHTTPPathPattern("/api/v1/samples"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_SampleService_ListSamples_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_SampleService_ListSamples_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
 	})
 
 	return nil
@@ -120,7 +139,7 @@ func RegisterSampleServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 			return
 		}
 
-		forward_SampleService_ListSamples_0(annotatedContext, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+		forward_SampleService_ListSamples_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -132,5 +151,5 @@ var (
 )
 
 var (
-	forward_SampleService_ListSamples_0 = runtime.ForwardResponseStream
+	forward_SampleService_ListSamples_0 = runtime.ForwardResponseMessage
 )

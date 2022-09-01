@@ -9,7 +9,7 @@ import "google/api/annotations.proto";
 option go_package = "canary-bot/proto/api/v1;apiv1";
 
 service SampleService {
-  rpc ListSamples(ListSampleRequest) returns (stream Sample) {
+  rpc ListSamples(ListSampleRequest) returns (ListSampleResponse) {
     option (google.api.http) = {
       get: "/api/v1/samples"
     };
@@ -18,11 +18,20 @@ service SampleService {
 
 message ListSampleRequest {}
 
+message ListSampleResponse {
+  // list of messured samples
+  repeated Sample samples = 1;
+}
+
 message Sample {
-  // Id uniquely identifies a user. Output only.
+  // by whom the sample was messured
   string from = 1;
+  // to whom the sample was messured
   string to = 2;
+  // the sample name
   string sample = 3;
+  // the sample value
   string value = 4;
+  // when the sample was messured
   string ts = 5;
 }

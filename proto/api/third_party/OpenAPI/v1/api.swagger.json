@@ -21,18 +21,9 @@
         "operationId": "SampleService_ListSamples",
         "responses": {
           "200": {
-            "description": "A successful response.(streaming responses)",
+            "description": "A successful response.",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/v1Sample"
-                },
-                "error": {
-                  "$ref": "#/definitions/rpcStatus"
-                }
-              },
-              "title": "Stream result of v1Sample"
+              "$ref": "#/definitions/v1ListSampleResponse"
             }
           },
           "default": {
@@ -76,25 +67,40 @@
         }
       }
     },
+    "v1ListSampleResponse": {
+      "type": "object",
+      "properties": {
+        "samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Sample"
+          },
+          "title": "list of messured samples"
+        }
+      }
+    },
     "v1Sample": {
       "type": "object",
       "properties": {
         "from": {
           "type": "string",
-          "description": "Id uniquely identifies a user. Output only.",
-          "readOnly": true
+          "title": "by whom the sample was messured"
         },
         "to": {
-          "type": "string"
+          "type": "string",
+          "title": "to whom the sample was messured"
         },
         "sample": {
-          "type": "string"
+          "type": "string",
+          "title": "the sample name"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "title": "the sample value"
         },
         "ts": {
-          "type": "string"
+          "type": "string",
+          "title": "when the sample was messured"
         }
       }
     }

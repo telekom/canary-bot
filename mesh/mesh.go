@@ -261,6 +261,7 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 		}
 
 		if !timedOut {
+			log.Infow("Ping failed", "node", node.Name)
 			m.database.SetNode(data.Convert(node, NODE_RETRY))
 		}
 		log.Debugw("Retrying", "node", m.database.GetNode(GetId(node)).Name, "delay", delay)
