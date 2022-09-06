@@ -9,6 +9,8 @@ import (
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
 	meshv1 "canary-bot/proto/mesh/v1"
+
+	h "canary-bot/helper"
 	"fmt"
 	"log"
 	"os"
@@ -49,6 +51,8 @@ var defaults mesh.Settings
 var set mesh.Settings
 
 func run(cmd *cobra.Command, args []string) {
+	// environment variables prefix
+	set.EnvPrefix = envPrefix
 	// prepare logging
 	var zapLogger *zap.Logger
 	var err error
@@ -66,6 +70,34 @@ func run(cmd *cobra.Command, args []string) {
 	// validate if node name for this node is set
 	if set.Name == defaults.Name {
 		logger.Fatalln("Please set a name for the creating node. It has to be unique in the mesh.")
+	}
+
+	// get IP of this node if no bind-address and/or domain set
+	externalIP, err := h.ExternalIP()
+	if set.ListenAddress == "" {
+		logger.Info("Bind-address flag not set - getting external IP automatically")
+		if err != nil {
+			logger.Fatalln("Could not get external IP, please use bind-address flag")
+		} else {
+			set.ListenAddress = externalIP
+		}
+	}
+	if set.Domain == "" {
+		logger.Info("Domain flag not set - getting external IP automatically")
+		if err != nil {
+			logger.Fatalln("Could not get external IP, please use domain flag")
+		} else {
+			set.Domain = externalIP
+		}
+	}
+
+	// get tokens; generate one if none is set
+	if len(set.Tokens) == 0 {
+		newToken := h.GenerateRandomToken(64)
+		set.Tokens = append(set.Tokens, newToken)
+		logger.Infow("No API tokens set - generated new token", "token", newToken)
+		logger.Info("Please use and set new token as environment variable")
+
 	}
 
 	// prepare targets
@@ -120,7 +152,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	// start API
-	if err = api.NewApi(mData, set, logger.Named("api")); err != nil {
+	if err = api.NewApi(mData, &set, logger.Named("api")); err != nil {
 		logger.Fatal("Could not start API - Error: %+v", err)
 	}
 
@@ -142,6 +174,7 @@ func init() {
 	defaults = mesh.Settings{
 		Targets:        []string{},
 		Name:           "",
+		Domain:         "",
 		ListenAddress:  "",
 		ListenPort:     8081,
 		ApiPort:        8080,
@@ -151,6 +184,7 @@ func init() {
 		ServerKey:      nil,
 		CaCertPath:     "",
 		CaCert:         nil,
+		Tokens:         []string{},
 		Debug:          false,
 	}
 
@@ -158,9 +192,10 @@ func init() {
 	cmd.Flags().StringSliceVarP(&set.Targets, "target", "t", defaults.Targets, "Comma-seperated or multi-flag list of targets for joining the mesh.\nFormat: [IP|ADDRESS]:PORT")
 
 	// ssttings for this node
-	cmd.Flags().StringVarP(&set.Name, "name", "n", defaults.Name, "Name of the node, has to be unique in mesh")
-	cmd.Flags().StringVarP(&set.ListenAddress, "address", "a", defaults.ListenAddress, "Domain (or IP) of this node")
-	cmd.Flags().Int64VarP(&set.ListenPort, "listen-port", "l", defaults.ListenPort, "Listening port of this node")
+	cmd.Flags().StringVarP(&set.Name, "name", "n", defaults.Name, "Name of the node, has to be unique in mesh (mandatory)")
+	cmd.Flags().StringVarP(&set.ListenAddress, "bind-address", "a", defaults.ListenAddress, "Address or IP the server of the node will bind to; eg. 0.0.0.0, localhost (default outbound IP of the network interface)")
+	cmd.Flags().Int64VarP(&set.ListenPort, "bind-port", "b", defaults.ListenPort, "Listening port of this node")
+	cmd.Flags().StringVar(&set.Domain, "domain", defaults.Domain, "Domain of this node; nodes in the mesh will use the domain to connect; eg. test.de, localhost (default outbound IP of the network interface)")
 
 	// API
 	cmd.Flags().Int64VarP(&set.ApiPort, "api-port", "p", defaults.ApiPort, "API port of this node")
@@ -174,6 +209,9 @@ func init() {
 	// TLS client side
 	cmd.Flags().StringVar(&set.CaCertPath, "ca-cert-path", defaults.CaCertPath, "Path to ca cert file to enable TLS")
 	cmd.Flags().BytesBase64Var(&set.CaCert, "ca-cert", defaults.CaCert, "Base64 encoded ca cert to enable TLS")
+
+	// Auth API
+	cmd.Flags().StringSliceVar(&set.Tokens, "token", defaults.Targets, "Comma-seperated or multi-flag list of tokens to protect the sample data API. (optional)")
 
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")

@@ -45,7 +45,7 @@ func (m *Mesh) Join(to []*meshv1.Node) (bool, error) {
 			context.Background(),
 			&meshv1.JoinMeshRequest{IAmNode: &meshv1.Node{
 				Name:   m.config.StartupSettings.Name,
-				Target: m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10),
+				Target: m.config.StartupSettings.Domain + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10),
 			}})
 
 		if err != nil {

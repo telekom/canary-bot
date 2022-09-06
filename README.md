@@ -10,7 +10,7 @@ go install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
 buf lint
 buf generate
 
-docker build -t mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest .
+docker build -t mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest . && \
 docker push mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest
 
 # Analyse Memory
@@ -37,3 +37,10 @@ https://test-max-bot1.caas-t02.telekom.de/api/v1/
 go run main.go -a localhost -p 8095 -l 8096 -n second -t localhost:8081
 
 TTL basiert 
+
+# the network
+Mesh Join: telling the joining mesh who I am:
+domain (optional; eg. test.de, localhost) > external IP (form network interface)
+
+Bind Server address: where to listen:
+address (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)

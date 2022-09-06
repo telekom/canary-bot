@@ -48,11 +48,13 @@ type Config struct {
 }
 
 type Settings struct {
+	EnvPrefix string
 	// remote target
 	Targets []string
 
 	// local config
 	Name          string
+	Domain        string
 	ListenAddress string
 	ListenPort    int64
 
@@ -67,6 +69,9 @@ type Settings struct {
 	// TLS client side
 	CaCertPath string
 	CaCert     []byte
+
+	//Auth API
+	Tokens []string
 
 	//Logging
 	Debug bool
@@ -89,17 +94,6 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 		timeoutNode:       make(chan *meshv1.Node),
 	}
 	m.log.Info("Starting Mesh")
-
-	// get IP of this node if no listen-address set
-	if conf.StartupSettings.ListenAddress == "" {
-		m.log.Info("Address flag not set - getting external IP automatically")
-		var err error
-		conf.StartupSettings.ListenAddress, err = h.ExternalIP()
-		if err != nil {
-			m.log.Fatalln("Could not get external IP, please use address flag")
-		}
-
-	}
 
 	go func() {
 		err := m.StartServer()

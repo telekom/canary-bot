@@ -4,8 +4,10 @@ import (
 	"errors"
 	"hash/fnv"
 	"log"
+	"math/rand"
 	"net"
 	"regexp"
+	"time"
 )
 
 func ExternalIP() (string, error) {
@@ -77,4 +79,37 @@ func Hash(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return h.Sum32()
+}
+
+// ------------------
+const charset = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+	"0123456789"
+
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
+
+func stringWithCharset(length int, charset string) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+func GenerateRandomToken(length int) string {
+	return stringWithCharset(length, charset)
+}
+
+//------------------
+func Equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }

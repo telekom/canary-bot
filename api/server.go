@@ -9,13 +9,18 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"mime"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"canary-bot/data"
 	"canary-bot/mesh"
+
+	h "canary-bot/helper"
 	third_party "canary-bot/proto/api/third_party"
 	apiv1 "canary-bot/proto/api/v1"
 	apiv1connect "canary-bot/proto/api/v1/apiv1connect"
@@ -34,12 +39,14 @@ import (
 // Api implements the protobuf interface
 type Api struct {
 	data data.Database
-	set  mesh.Settings
+	set  *mesh.Settings
 	log  *zap.SugaredLogger
 }
 
 // ListUsers lists all users in the store.
 func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
+	log.Printf("Request: %+v", req.Header())
+	//return nil, fmt.Errorf("No Auth")
 	samples := []*apiv1.Sample{}
 
 	for _, sample := range b.data.GetSampleList() {
@@ -67,7 +74,7 @@ func getOpenAPIHandler() http.Handler {
 	return http.FileServer(http.FS(subFS))
 }
 
-func NewApi(data data.Database, set mesh.Settings, log *zap.SugaredLogger) error {
+func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) error {
 
 	a := &Api{
 		data: data,
@@ -75,7 +82,10 @@ func NewApi(data data.Database, set mesh.Settings, log *zap.SugaredLogger) error
 		log:  log,
 	}
 
-	// TLS client
+	// get API tokens
+	go a.getApiTokens(log, set)
+
+	// TLS client for grpc server to connect to proxy
 	var opts []grpc.DialOption
 	tlsClientCredentials, err := loadClientTLSCredentials(set.CaCertPath, set.CaCert)
 	if err != nil {
@@ -90,8 +100,6 @@ func NewApi(data data.Database, set mesh.Settings, log *zap.SugaredLogger) error
 	conn, err := grpc.DialContext(
 		context.Background(),
 		"dns:///"+addr,
-		//grpc.WithTransportCredentials(credentials.NewTLS(tlsCredentials)),
-		//grpc.WithInsecure(),
 		opts...,
 	)
 	if err != nil {
@@ -111,18 +119,19 @@ func NewApi(data data.Database, set mesh.Settings, log *zap.SugaredLogger) error
 		return fmt.Errorf("failed to register gateway: %w", err)
 	}
 
+	interceptors := connect.WithInterceptors(a.NewAuthInterceptor())
+
 	mux := http.NewServeMux()
 	mux.Handle("/", getOpenAPIHandler())
-	mux.Handle(apiv1connect.NewSampleServiceHandler(a))
+	mux.Handle(apiv1connect.NewSampleServiceHandler(a, interceptors))
 	mux.Handle("/api/v1/", gwmux)
 	server := &http.Server{
 		Addr:    addr,
 		Handler: h2c.NewHandler(mux, &http2.Server{}),
 	}
-
 	log.Info("Serving Connect, gRPC-Gateway and OpenAPI Documentation on ", addr)
 
-	// TLS
+	// TLS for http server
 	tlsCredentials, err := loadTLSCredentials(
 		set.ServerCertPath,
 		set.ServerKeyPath,
@@ -140,6 +149,59 @@ func NewApi(data data.Database, set mesh.Settings, log *zap.SugaredLogger) error
 	}
 
 	return server.ListenAndServe()
+}
+
+func (a *Api) getApiTokens(log *zap.SugaredLogger, set *mesh.Settings) {
+	// Timer
+	ticker := time.NewTicker(time.Second * 10)
+	quit := make(chan struct{})
+
+	for {
+		select {
+		case <-ticker.C:
+			envTokens := os.Getenv(set.EnvPrefix + "_TOKEN")
+			if envTokens != "" {
+				tokens := strings.Split(envTokens, ",")
+				if !h.Equal(tokens, set.Tokens) {
+					set.Tokens = tokens
+					log.Debugf("Setting API token(s) from enviroment variable")
+				}
+			}
+		case <-quit:
+			// Not used
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
+	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
+		return connect.UnaryFunc(
+			func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+				a.log.Debugf("API tokens: %+v", a.set.Tokens)
+				authToken := req.Header().Get("Authorization")
+				// check if token is set
+				if authToken == "" {
+					return nil, connect.NewError(
+						connect.CodeUnauthenticated,
+						errors.New("no token provided"),
+					)
+				}
+
+				// check if token is correct
+				for _, t := range a.set.Tokens {
+					if authToken[7:] == t {
+						return next(ctx, req)
+					}
+				}
+				return nil, connect.NewError(
+					connect.CodeUnauthenticated,
+					errors.New("auth failed"),
+				)
+			})
+	}
+	return connect.UnaryInterceptorFunc(interceptor)
 }
 
 func loadTLSCredentials(serverCert_path string, serverKey_path string, serverCert_b64 []byte, serverKey_b64 []byte) (*tls.Config, error) {
