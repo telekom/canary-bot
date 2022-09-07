@@ -15,7 +15,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -152,16 +151,16 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 
 	if _, exists := m.clients[nodeId]; !exists {
 		var opts []grpc.DialOption
-
+		//opts = append(opts, grpc.WithBlock())
 		// TLS
 		tlsCredentials, err := loadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
 		if err != nil {
 			log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
-			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			insecure := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+			opts = append(opts, grpc.WithTransportCredentials(insecure))
 		} else {
 			opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
 		}
-
 		conn, err := grpc.Dial(to.Target, opts...)
 		if err != nil {
 			log.Debugw("Dial error", "error", err)

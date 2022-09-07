@@ -33,6 +33,7 @@ grpcurl -import-path proto/api/v1  -proto api.proto -cacert cert/ca-cert.pem loc
 
 https://test-max-bot1.caas-t02.telekom.de/api/v1/
 
+grpcurl -import-path proto/mesh/v1 -proto mesh.proto test-max-bot1-mesh.caas-t02.telekom.de:443 mesh.v1.MeshService/Ping
 
 go run main.go -a localhost -p 8095 -l 8096 -n second -t localhost:8081
 
