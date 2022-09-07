@@ -82,8 +82,8 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 		log:  log,
 	}
 
-	// get API tokens
-	go a.getApiTokens(log, set)
+	//DEPRECATED: get API tokens
+	//go a.getApiTokens(log, set)
 
 	// TLS client for grpc server to connect to proxy
 	var opts []grpc.DialOption
@@ -151,6 +151,7 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 	return server.ListenAndServe()
 }
 
+//DEPRECATED
 func (a *Api) getApiTokens(log *zap.SugaredLogger, set *mesh.Settings) {
 	// Timer
 	ticker := time.NewTicker(time.Second * 10)
@@ -179,7 +180,7 @@ func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
 		return connect.UnaryFunc(
 			func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-				a.log.Debugf("API tokens: %+v", a.set.Tokens)
+				//a.log.Debugf("API tokens: %+v", a.set.Tokens)
 				authToken := req.Header().Get("Authorization")
 				// check if token is set
 				if authToken == "" {

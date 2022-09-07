@@ -7,7 +7,8 @@ TODO TLS: multiple ca certs in client
 TODO Error handling + Logging
 TODO pull samples from last updated node
 TODO set state as sample?
+TODO JOIN MESH als routine
 
 API
-TODO generate token
 TODO cleanup
+TODO share token logic

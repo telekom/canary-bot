@@ -2,4 +2,5 @@ cert
 .vscode
 __debug_bin
 tmp
+tmp2
 test

@@ -29,9 +29,9 @@ type MeshServer struct {
 
 func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.JoinMeshRequest) (*meshv1.JoinMeshResponse, error) {
 	s.log.Infow("New join mesh request", "node", req.IAmNode.Name)
-	// Check if name of joining node is unique in mesh, let join if state is not ok
+	// Check if name of joining node is unique in mesh, let join if state is not ok, let join if target is same
 	dbnode := s.data.GetNodeByName(req.IAmNode.Name)
-	if (dbnode.Id != 0 && dbnode.State == NODE_OK) || *s.name == req.IAmNode.Name {
+	if (dbnode.Id != 0 && dbnode.State == NODE_OK && dbnode.Target != req.IAmNode.Target) || *s.name == req.IAmNode.Name {
 		return &meshv1.JoinMeshResponse{NameUnique: false, MyName: *s.name, Nodes: []*meshv1.Node{}}, nil
 	}
 	s.newNodeDiscovered <- NodeDiscovered{req.IAmNode, GetId(req.IAmNode)}

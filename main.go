@@ -9,6 +9,7 @@ import (
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
 	meshv1 "canary-bot/proto/mesh/v1"
+	"strconv"
 
 	h "canary-bot/helper"
 	"fmt"
@@ -87,7 +88,7 @@ func run(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatalln("Could not get external IP, please use domain flag")
 		} else {
-			set.Domain = externalIP
+			set.Domain = externalIP + strconv.FormatInt(set.ListenPort, 10)
 		}
 	}
 
