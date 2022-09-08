@@ -15,6 +15,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -156,8 +157,7 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 		tlsCredentials, err := loadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
 		if err != nil {
 			log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
-			insecure := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
-			opts = append(opts, grpc.WithTransportCredentials(insecure))
+			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		} else {
 			opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
 		}

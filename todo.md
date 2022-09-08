@@ -10,5 +10,4 @@ TODO set state as sample?
 TODO JOIN MESH als routine
 
 API
-TODO cleanup
 TODO share token logic

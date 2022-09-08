@@ -138,6 +138,17 @@ func run(cmd *cobra.Command, args []string) {
 		logger.Fatalf("Could not create Mesh - Error: %+v", err)
 	}
 
+	// check TLS mode
+	if set.CaCert != nil || set.CaCertPath != "" {
+		if (set.ServerCert != nil || set.ServerCertPath != "") && (set.ServerKey != nil || set.ServerKeyPath != "") {
+			logger.Info("Mesh is set to mutal TLS mode")
+		} else {
+			logger.Info("Mesh is set to edge-terminated TLS mode")
+		}
+	} else {
+		logger.Info("Mesh is set to unsecure mode - no TLS used")
+	}
+
 	// check if this node ist first in mesh otherwise join
 	if len(set.Targets) == 0 {
 		logger.Info("No target set - first node in mesh")

@@ -2,25 +2,16 @@ package api
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
-	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
-	"log"
 	"mime"
 	"net/http"
-	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"canary-bot/data"
 	"canary-bot/mesh"
 
-	h "canary-bot/helper"
 	third_party "canary-bot/proto/api/third_party"
 	apiv1 "canary-bot/proto/api/v1"
 	apiv1connect "canary-bot/proto/api/v1/apiv1connect"
@@ -45,8 +36,6 @@ type Api struct {
 
 // ListUsers lists all users in the store.
 func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
-	log.Printf("Request: %+v", req.Header())
-	//return nil, fmt.Errorf("No Auth")
 	samples := []*apiv1.Sample{}
 
 	for _, sample := range b.data.GetSampleList() {
@@ -75,21 +64,37 @@ func getOpenAPIHandler() http.Handler {
 }
 
 func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) error {
-
 	a := &Api{
 		data: data,
 		set:  set,
 		log:  log,
 	}
 
-	//DEPRECATED: get API tokens
-	//go a.getApiTokens(log, set)
-
-	// TLS client for grpc server to connect to proxy
 	var opts []grpc.DialOption
-	tlsClientCredentials, err := loadClientTLSCredentials(set.CaCertPath, set.CaCert)
+
+	// TLS for http proxy server
+	tlsCredentials, err := loadTLSCredentials(
+		set.ServerCertPath,
+		set.ServerKeyPath,
+		set.ServerCert,
+		set.ServerKey,
+	)
+
 	if err != nil {
-		log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
+		log.Warnw("Cannot load TLS server credentials - using insecure connection for incoming requests")
+		log.Debugw("Cannot load TLS credentials", "error", err.Error())
+	}
+
+	// TLS for client connect from http proxy server to grpc server
+	// just load it if TLS is activated, not considered for edge-terminated TLS
+	var tlsClientCredentials credentials.TransportCredentials
+	if tlsCredentials != nil {
+		tlsClientCredentials, err = loadClientTLSCredentials(set.CaCertPath, set.CaCert)
+
+	}
+
+	if err != nil {
+		log.Debugw("Cannot load TLS client credentials - starting insecure connection to grpc server")
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(tlsClientCredentials))
@@ -119,6 +124,7 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 		return fmt.Errorf("failed to register gateway: %w", err)
 	}
 
+	// Auth
 	interceptors := connect.WithInterceptors(a.NewAuthInterceptor())
 
 	mux := http.NewServeMux()
@@ -131,139 +137,11 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 	}
 	log.Info("Serving Connect, gRPC-Gateway and OpenAPI Documentation on ", addr)
 
-	// TLS for http server
-	tlsCredentials, err := loadTLSCredentials(
-		set.ServerCertPath,
-		set.ServerKeyPath,
-		set.ServerCert,
-		set.ServerKey,
-	)
-
-	if err != nil {
-		log.Warnw("Cannot load TLS credentials - using insecure connection")
-		log.Debugw("Cannot load TLS credentials", "error", err.Error())
-	}
+	// TLS ready
 	if tlsCredentials != nil {
 		server.TLSConfig = tlsCredentials
 		return server.ListenAndServeTLS("", "")
 	}
 
 	return server.ListenAndServe()
-}
-
-//DEPRECATED
-func (a *Api) getApiTokens(log *zap.SugaredLogger, set *mesh.Settings) {
-	// Timer
-	ticker := time.NewTicker(time.Second * 10)
-	quit := make(chan struct{})
-
-	for {
-		select {
-		case <-ticker.C:
-			envTokens := os.Getenv(set.EnvPrefix + "_TOKEN")
-			if envTokens != "" {
-				tokens := strings.Split(envTokens, ",")
-				if !h.Equal(tokens, set.Tokens) {
-					set.Tokens = tokens
-					log.Debugf("Setting API token(s) from enviroment variable")
-				}
-			}
-		case <-quit:
-			// Not used
-			ticker.Stop()
-			return
-		}
-	}
-}
-
-func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
-	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
-		return connect.UnaryFunc(
-			func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-				//a.log.Debugf("API tokens: %+v", a.set.Tokens)
-				authToken := req.Header().Get("Authorization")
-				// check if token is set
-				if authToken == "" {
-					return nil, connect.NewError(
-						connect.CodeUnauthenticated,
-						errors.New("no token provided"),
-					)
-				}
-
-				// check if token is correct
-				for _, t := range a.set.Tokens {
-					if authToken[7:] == t {
-						return next(ctx, req)
-					}
-				}
-				return nil, connect.NewError(
-					connect.CodeUnauthenticated,
-					errors.New("auth failed"),
-				)
-			})
-	}
-	return connect.UnaryInterceptorFunc(interceptor)
-}
-
-func loadTLSCredentials(serverCert_path string, serverKey_path string, serverCert_b64 []byte, serverKey_b64 []byte) (*tls.Config, error) {
-	// Load server certificate and key
-	var serverCert tls.Certificate
-	var err error
-
-	if serverCert_path != "" && serverKey_path != "" {
-		serverCert, err = tls.LoadX509KeyPair(serverCert_path, serverKey_path)
-	} else if serverCert_b64 != nil && serverKey_b64 != nil {
-		var cert []byte
-		var key []byte
-		_, err = base64.StdEncoding.Decode(cert, serverCert_b64)
-		if err != nil {
-			return nil, err
-		}
-		_, err = base64.StdEncoding.Decode(key, serverCert_b64)
-		serverCert, err = tls.X509KeyPair(cert, key)
-	} else {
-		return nil, errors.New("Neither server cert and key path nor base64 encoded cert and key set")
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	config := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.NoClientCert,
-	}
-
-	return config, nil
-}
-
-func loadClientTLSCredentials(caCert_Path string, caCert_b64 []byte) (credentials.TransportCredentials, error) {
-	// Load certificate of the CA who signed server certificate
-
-	var pemServerCA []byte
-	var err error
-
-	if caCert_Path != "" {
-		pemServerCA, err = ioutil.ReadFile(caCert_Path)
-	} else if caCert_b64 != nil {
-		_, err = base64.StdEncoding.Decode(pemServerCA, caCert_b64)
-	} else {
-		return nil, errors.New("Neither ca cert path nor base64 encoded ca cert set")
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, fmt.Errorf("Failed to add server ca certificate")
-	}
-
-	// Create the credentials and return it
-	config := &tls.Config{
-		RootCAs: certPool,
-	}
-
-	return credentials.NewTLS(config), nil
 }

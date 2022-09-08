@@ -45,3 +45,16 @@ domain (optional; eg. test.de, localhost) > external IP (form network interface)
 
 Bind Server address: where to listen:
 address (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)
+
+# mesh TLS
+1. No TLS
+- nothing todo
+2. edge terminated TLS
+- eg. in a Kubenetes Cluster with NGINX Ingress Controller
+- Client: needs CA Cert
+- Server: nothing todo, TLS is terminated before reaching server
+- use: ca-cert flag
+2. e2e Mutal TLS
+- Client: needs CA Cert
+- Server: needs Server Cert & Server Key
+- use: ca-cert, server-cert, server-key flags
