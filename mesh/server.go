@@ -27,14 +27,14 @@ type MeshServer struct {
 	newNodeDiscovered chan NodeDiscovered
 }
 
-func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.JoinMeshRequest) (*meshv1.JoinMeshResponse, error) {
-	s.log.Infow("New join mesh request", "node", req.IAmNode.Name)
+func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.JoinMeshResponse, error) {
+	s.log.Infow("New join mesh request", "node", req.Name)
 	// Check if name of joining node is unique in mesh, let join if state is not ok, let join if target is same
-	dbnode := s.data.GetNodeByName(req.IAmNode.Name)
-	if (dbnode.Id != 0 && dbnode.State == NODE_OK && dbnode.Target != req.IAmNode.Target) || *s.name == req.IAmNode.Name {
+	dbnode := s.data.GetNodeByName(req.Name)
+	if (dbnode.Id != 0 && dbnode.State == NODE_OK && dbnode.Target != req.Target) || *s.name == req.Name {
 		return &meshv1.JoinMeshResponse{NameUnique: false, MyName: *s.name, Nodes: []*meshv1.Node{}}, nil
 	}
-	s.newNodeDiscovered <- NodeDiscovered{req.IAmNode, GetId(req.IAmNode)}
+	s.newNodeDiscovered <- NodeDiscovered{req, GetId(req)}
 
 	var nodes []*meshv1.Node
 	for _, datanode := range s.data.GetNodeList() {
@@ -44,7 +44,10 @@ func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.JoinMeshRequest) 
 	return &res, nil
 }
 
-func (s *MeshServer) Ping(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
+func (s *MeshServer) Ping(ctx context.Context, req *meshv1.Node) (*emptypb.Empty, error) {
+	if req != nil {
+		s.data.SetNode(data.Convert(req, NODE_OK))
+	}
 	return &emptypb.Empty{}, nil
 }
 

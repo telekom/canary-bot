@@ -23,8 +23,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MeshServiceClient interface {
-	JoinMesh(ctx context.Context, in *JoinMeshRequest, opts ...grpc.CallOption) (*JoinMeshResponse, error)
-	Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	JoinMesh(ctx context.Context, in *Node, opts ...grpc.CallOption) (*JoinMeshResponse, error)
+	Ping(ctx context.Context, in *Node, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	NodeDiscovery(ctx context.Context, in *NodeDiscoveryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	PushSamples(ctx context.Context, in *Samples, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
@@ -37,7 +37,7 @@ func NewMeshServiceClient(cc grpc.ClientConnInterface) MeshServiceClient {
 	return &meshServiceClient{cc}
 }
 
-func (c *meshServiceClient) JoinMesh(ctx context.Context, in *JoinMeshRequest, opts ...grpc.CallOption) (*JoinMeshResponse, error) {
+func (c *meshServiceClient) JoinMesh(ctx context.Context, in *Node, opts ...grpc.CallOption) (*JoinMeshResponse, error) {
 	out := new(JoinMeshResponse)
 	err := c.cc.Invoke(ctx, "/mesh.v1.MeshService/JoinMesh", in, out, opts...)
 	if err != nil {
@@ -46,7 +46,7 @@ func (c *meshServiceClient) JoinMesh(ctx context.Context, in *JoinMeshRequest, o
 	return out, nil
 }
 
-func (c *meshServiceClient) Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *meshServiceClient) Ping(ctx context.Context, in *Node, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/mesh.v1.MeshService/Ping", in, out, opts...)
 	if err != nil {
@@ -77,8 +77,8 @@ func (c *meshServiceClient) PushSamples(ctx context.Context, in *Samples, opts .
 // All implementations must embed UnimplementedMeshServiceServer
 // for forward compatibility
 type MeshServiceServer interface {
-	JoinMesh(context.Context, *JoinMeshRequest) (*JoinMeshResponse, error)
-	Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	JoinMesh(context.Context, *Node) (*JoinMeshResponse, error)
+	Ping(context.Context, *Node) (*emptypb.Empty, error)
 	NodeDiscovery(context.Context, *NodeDiscoveryRequest) (*emptypb.Empty, error)
 	PushSamples(context.Context, *Samples) (*emptypb.Empty, error)
 	mustEmbedUnimplementedMeshServiceServer()
@@ -88,10 +88,10 @@ type MeshServiceServer interface {
 type UnimplementedMeshServiceServer struct {
 }
 
-func (UnimplementedMeshServiceServer) JoinMesh(context.Context, *JoinMeshRequest) (*JoinMeshResponse, error) {
+func (UnimplementedMeshServiceServer) JoinMesh(context.Context, *Node) (*JoinMeshResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method JoinMesh not implemented")
 }
-func (UnimplementedMeshServiceServer) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+func (UnimplementedMeshServiceServer) Ping(context.Context, *Node) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
 func (UnimplementedMeshServiceServer) NodeDiscovery(context.Context, *NodeDiscoveryRequest) (*emptypb.Empty, error) {
@@ -114,7 +114,7 @@ func RegisterMeshServiceServer(s grpc.ServiceRegistrar, srv MeshServiceServer) {
 }
 
 func _MeshService_JoinMesh_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(JoinMeshRequest)
+	in := new(Node)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -126,13 +126,13 @@ func _MeshService_JoinMesh_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/mesh.v1.MeshService/JoinMesh",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MeshServiceServer).JoinMesh(ctx, req.(*JoinMeshRequest))
+		return srv.(MeshServiceServer).JoinMesh(ctx, req.(*Node))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _MeshService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(Node)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func _MeshService_Ping_Handler(srv interface{}, ctx context.Context, dec func(in
 		FullMethod: "/mesh.v1.MeshService/Ping",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MeshServiceServer).Ping(ctx, req.(*emptypb.Empty))
+		return srv.(MeshServiceServer).Ping(ctx, req.(*Node))
 	}
 	return interceptor(ctx, in, info, handler)
 }

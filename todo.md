@@ -6,8 +6,7 @@ TODO database: remove node id and use unique node name
 TODO TLS: multiple ca certs in client
 TODO Error handling + Logging
 TODO pull samples from last updated node
-TODO set state as sample?
-TODO JOIN MESH als routine
+TODO ping mit info IAM oder pushRoutineIAM
 
 API
 TODO share token logic

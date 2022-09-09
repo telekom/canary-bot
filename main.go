@@ -8,7 +8,6 @@ import (
 	"canary-bot/api"
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
-	meshv1 "canary-bot/proto/mesh/v1"
 	"strconv"
 
 	h "canary-bot/helper"
@@ -73,6 +72,11 @@ func run(cmd *cobra.Command, args []string) {
 		logger.Fatalln("Please set a name for the creating node. It has to be unique in the mesh.")
 	}
 
+	// validate if target(s) is/are set
+	if len(set.Targets) == 0 {
+		logger.Fatal("No target(s) set, please set to join a (future) mesh")
+	}
+
 	// get IP of this node if no bind-address and/or domain set
 	externalIP, err := h.ExternalIP()
 	if set.ListenAddress == "" {
@@ -101,16 +105,6 @@ func run(cmd *cobra.Command, args []string) {
 
 	}
 
-	// prepare targets
-	var joinNodes []*meshv1.Node
-	for _, target := range set.Targets {
-		joinNodes = append(joinNodes, &meshv1.Node{
-			Name:   "",
-			Target: target,
-		},
-		)
-	}
-
 	// prepare in-memory database
 	mData, err := data.NewMemDB(logger.Named("database"))
 	if err != nil {
@@ -118,7 +112,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	// prepare mesh
-	m, err := mesh.NewMesh(mData, &mesh.Config{
+	_, err = mesh.NewMesh(mData, &mesh.Config{
 		PingInterval:          time.Second * 10,
 		PingRetryAmount:       3,
 		PingRetryDelay:        time.Second * 5,
@@ -147,20 +141,6 @@ func run(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		logger.Info("Mesh is set to unsecure mode - no TLS used")
-	}
-
-	// check if this node ist first in mesh otherwise join
-	if len(set.Targets) == 0 {
-		logger.Info("No target set - first node in mesh")
-	} else {
-		isNameUniqueInMesh, err := m.Join(joinNodes)
-		if err != nil {
-			logger.Fatalf("Could not join Mesh - Error: %+v", err)
-		}
-		if !isNameUniqueInMesh {
-			logger.Fatal("The name is not unique in the mesh, please choose another one.")
-			// TODO generate random node name
-		}
 	}
 
 	// start API

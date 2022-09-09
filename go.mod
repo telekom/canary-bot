@@ -35,6 +35,7 @@ require (
 
 require (
 	github.com/bufbuild/connect-go v0.4.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
