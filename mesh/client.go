@@ -29,13 +29,10 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	var res *meshv1.JoinMeshResponse
 	log.Debugw("Starting")
 
-	log.Debugw("Conn loop")
 	for index, target := range targets {
 		node := &meshv1.Node{Name: "", Target: target}
 
-		log.Debugw("target loop")
 		err := m.initClient(node, false, false, false)
-		log.Debugw("init client ok")
 		if err != nil {
 			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
@@ -70,11 +67,11 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 		// save join-requested node as node in mesh
 		node.Name = res.MyName
 		m.database.SetNode(data.Convert(node, NODE_OK))
-		log.Debug("JOIN OK")
 		//m.clients[GetId(node)].conn.Close()
+
+		log.Infow("Joined mesh", "name", node.Name, "target", node.Target)
 		break
 	}
-	log.Debug("JOIN OK 2")
 	for _, node := range res.Nodes {
 		if GetId(node) != GetId(&meshv1.Node{
 			Name:   m.config.StartupSettings.Name,
@@ -83,8 +80,6 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 			m.database.SetNode(data.Convert(node, NODE_OK))
 		}
 	}
-
-	log.Debug("JOIN OK 3")
 	return true, true
 }
 
@@ -187,13 +182,11 @@ func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconn
 		}
 
 		// dial
-		log.Debugw("DIAL")
 		conn, err := grpc.Dial(to.Target, opts...)
 		if err != nil {
 			log.Debugw("Dial error", "error", err)
 			return err
 		}
-		log.Debugw("DIAL OK")
 
 		client := meshv1.NewMeshServiceClient(conn)
 

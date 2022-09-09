@@ -113,6 +113,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	// prepare mesh
 	_, err = mesh.NewMesh(mData, &mesh.Config{
+		JoinInterval:          time.Second * 3,
 		PingInterval:          time.Second * 10,
 		PingRetryAmount:       3,
 		PingRetryDelay:        time.Second * 5,
@@ -124,6 +125,8 @@ func run(cmd *cobra.Command, args []string) {
 		PushSampleToAmount:    1,
 		PushSampleRetryAmount: 2,
 		PushSampleRetryDelay:  time.Second * 1,
+		CleanSampleInterval:   time.Second * 5,
+		SampleMaxAge:          time.Minute, //time.Hour * 24,
 
 		StartupSettings: set,
 	}, logger)

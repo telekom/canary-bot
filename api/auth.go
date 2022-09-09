@@ -21,7 +21,7 @@ func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 				authToken := req.Header().Get("Authorization")
 				// check if token is set
 				if authToken == "" {
-					a.log.Debugw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed")
+					a.log.Warnw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed")
 					return nil, connect.NewError(
 						connect.CodeUnauthenticated,
 						errors.New("no token provided"),
@@ -31,11 +31,11 @@ func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 				// check if token is correct
 				for _, t := range a.set.Tokens {
 					if authToken[7:] == t {
-						a.log.Debugw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeded")
+						a.log.Infow("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeded")
 						return next(ctx, req)
 					}
 				}
-				a.log.Debugw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed")
+				a.log.Warnw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed")
 				return nil, connect.NewError(
 					connect.CodeUnauthenticated,
 					errors.New("auth failed"),

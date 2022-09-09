@@ -24,14 +24,18 @@ type Mesh struct {
 	newNodeDiscovered chan NodeDiscovered
 	timeoutNode       chan *meshv1.Node
 
-	pingTicker       *time.Ticker
-	pushSampleTicker *time.Ticker
+	pingTicker        *time.Ticker
+	pushSampleTicker  *time.Ticker
+	cleanSampleTicker *time.Ticker
 
 	quitJoinRoutine chan bool
 	joinRoutineDone bool
 }
 
 type Config struct {
+	// Join config
+	JoinInterval time.Duration
+
 	// Ping config
 	PingInterval       time.Duration
 	PingRetryAmount    int
@@ -48,6 +52,10 @@ type Config struct {
 	PushSampleToAmount    int
 	PushSampleRetryAmount int
 	PushSampleRetryDelay  time.Duration
+
+	// Clean samples
+	CleanSampleInterval time.Duration
+	SampleMaxAge        time.Duration
 
 	// User settings from flags and env vars
 	StartupSettings Settings
@@ -101,9 +109,10 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 		quitJoinRoutine:   make(chan bool, 1),
 		joinRoutineDone:   false,
 	}
-	m.log.Info("Starting Mesh")
+	m.log.Info("Starting mesh")
 
 	go func() {
+		m.log.Info("Starting server, listening vor joining nodes")
 		err := m.StartServer()
 		if err != nil {
 			m.log.Debugf("Mesh server error: %+v", err)
@@ -111,11 +120,8 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 		}
 	}()
 
-	m.log.Infow("Starting channel routines")
+	m.log.Infow("Starting mesh routines")
 	go m.channelRoutines()
-
-	m.log.Infow("Starting timer routines")
-
 	go m.timerRoutines()
 
 	return m, nil
@@ -124,13 +130,16 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 func (m *Mesh) timerRoutines() {
 
 	// Timer to send ping to node
-	joinTicker := time.NewTicker(time.Second * 5)
+	joinTicker := time.NewTicker(m.config.JoinInterval)
 	// Timer to send ping to node
 	m.pingTicker = time.NewTicker(m.config.PingInterval)
 	m.pingTicker.Stop()
 	// Timer to send samples to node
 	m.pushSampleTicker = time.NewTicker(m.config.PushSampleInterval)
 	m.pushSampleTicker.Stop()
+	// Timer to clean sampels from removed nodes
+	m.cleanSampleTicker = time.NewTicker(m.config.CleanSampleInterval)
+	m.cleanSampleTicker.Stop()
 	// Not used
 	quit := make(chan bool)
 
@@ -139,14 +148,13 @@ func (m *Mesh) timerRoutines() {
 		case <-joinTicker.C:
 			log := m.log.Named("join-routine")
 			// join (future) mesh
-			log.Infow("Waiting for a node for joining ...")
+			log.Infow("Waiting for a node to join a mesh...")
 			connected, isNameUniqueInMesh := m.Join(m.config.StartupSettings.Targets)
 			if !isNameUniqueInMesh {
 				log.Fatal("The name is not unique in the mesh, please choose another one.")
 				// TODO generate random node name?
 			}
 			if connected {
-				log.Debug("Join DONE - quit join routine")
 				m.quitJoinRoutine <- true
 			}
 
@@ -186,6 +194,14 @@ func (m *Mesh) timerRoutines() {
 				nodes = nodes[:len(nodes)-1]
 
 			}
+		case <-m.cleanSampleTicker.C:
+			// check if sample is too old and delete
+			for _, sample := range m.database.GetSampleList() {
+				if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.config.SampleMaxAge)) {
+					m.log.Infow("Delete old sample", "from", sample.From, "to", sample.To, "key", data.SampleName[sample.Key], "maxAge", m.config.SampleMaxAge.String())
+					m.database.DeleteSample(sample.Id)
+				}
+			}
 
 		case <-quit:
 			// Not used
@@ -195,9 +211,11 @@ func (m *Mesh) timerRoutines() {
 		case <-m.quitJoinRoutine:
 			joinTicker.Stop()
 			m.joinRoutineDone = true
-			m.pingTicker = time.NewTicker(m.config.PingInterval)
-			m.pushSampleTicker = time.NewTicker(m.config.PushSampleInterval)
-			m.log.Debug("Quit joinRoutine - ok ... TICKER started")
+			// starting ticker after join routine
+			m.pingTicker.Reset(m.config.PingInterval)
+			m.pushSampleTicker.Reset(m.config.PushSampleInterval)
+			m.cleanSampleTicker.Reset(m.config.CleanSampleInterval)
+			m.log.Debug("Stop joinRoutine, starting all timer routines")
 		}
 	}
 }
@@ -209,7 +227,6 @@ func (m *Mesh) channelRoutines() {
 			log := m.log.Named("discovery-routine")
 			// quit joinMesh routine if discovery is received before
 			if !m.joinRoutineDone {
-				log.Debug("Quit joinRoutine")
 				m.quitJoinRoutine <- true
 			}
 			if m.database.GetNodeByName(nodeDiscovered.NewNode.Name).Id != 0 {

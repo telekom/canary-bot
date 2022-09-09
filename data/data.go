@@ -33,7 +33,7 @@ type DbNode struct {
 	LastSampleTs int64
 }
 type Sample struct {
-	id    uint32
+	Id    uint32
 	From  string
 	To    string
 	Key   int64
@@ -84,7 +84,7 @@ func NewMemDB(logger *zap.SugaredLogger) (Database, error) {
 						Name:         "id",
 						Unique:       true,
 						AllowMissing: false,
-						Indexer:      &memdb.UintFieldIndex{Field: "id"},
+						Indexer:      &memdb.UintFieldIndex{Field: "Id"},
 					},
 					"from": {
 						Name:         "from",
@@ -159,12 +159,34 @@ func (db *Database) SetNodeTsNow(id uint32) {
 func (db *Database) SetSample(sample *Sample) {
 	// Create a write transaction
 	txn := db.Txn(true)
-	sample.id = GetSampleId(sample)
+	sample.Id = GetSampleId(sample)
 	err := txn.Insert("sample", sample)
 	if err != nil {
 		panic(err)
 	}
 
+	// Commit the transaction
+	txn.Commit()
+}
+
+func (db *Database) GetSample(id uint32) *Sample {
+	txn := db.Txn(false)
+	raw, err := txn.First("sample", "id", id)
+	if err != nil {
+		panic(err)
+	}
+	if raw == nil {
+		return &Sample{}
+	}
+	return raw.(*Sample)
+}
+
+func (db *Database) DeleteSample(id uint32) {
+	txn := db.Txn(true)
+	err := txn.Delete("sample", db.GetSample(id))
+	if err != nil {
+		db.log.Debugf("Could not delete sample")
+	}
 	// Commit the transaction
 	txn.Commit()
 }
