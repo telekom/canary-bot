@@ -2,19 +2,13 @@ package mesh
 
 import (
 	"canary-bot/data"
+	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
-	"errors"
-	"fmt"
-	"io/ioutil"
 	"strconv"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -46,7 +40,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 			context.Background(),
 			&meshv1.Node{
 				Name:   m.config.StartupSettings.Name,
-				Target: m.config.StartupSettings.Domain,
+				Target: m.config.StartupSettings.JoinAddress,
 			})
 
 		if err != nil {
@@ -95,7 +89,7 @@ func (m *Mesh) Ping(node *meshv1.Node) (time.Duration, error) {
 		context.Background(),
 		&meshv1.Node{
 			Name:   m.config.StartupSettings.Name,
-			Target: m.config.StartupSettings.Domain,
+			Target: m.config.StartupSettings.JoinAddress,
 		})
 	timeEnd := time.Now()
 	if err != nil {
@@ -163,7 +157,7 @@ func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconn
 		var opts []grpc.DialOption
 
 		// TLS
-		tlsCredentials, err := loadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
+		tlsCredentials, err := h.LoadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
 		if err != nil {
 			log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
 			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -208,35 +202,4 @@ func (m *Mesh) closeClient(to *meshv1.Node) {
 	// remove client
 	delete(m.clients, GetId(to))
 	m.mu.Unlock()
-}
-
-func loadClientTLSCredentials(caCert_Path string, caCert_b64 []byte) (credentials.TransportCredentials, error) {
-	// Load certificate of the CA who signed server certificate
-
-	var pemServerCA []byte
-	var err error
-
-	if caCert_Path != "" {
-		pemServerCA, err = ioutil.ReadFile(caCert_Path)
-	} else if caCert_b64 != nil {
-		_, err = base64.StdEncoding.Decode(pemServerCA, caCert_b64)
-	} else {
-		return nil, errors.New("Neither ca cert path nor base64 encoded ca cert set")
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, fmt.Errorf("Failed to add server ca certificate")
-	}
-
-	// Create the credentials and return it
-	config := &tls.Config{
-		RootCAs: certPool,
-	}
-
-	return credentials.NewTLS(config), nil
 }

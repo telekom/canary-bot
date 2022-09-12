@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"canary-bot/data"
+	h "canary-bot/helper"
 	"canary-bot/mesh"
 
 	third_party "canary-bot/proto/api/third_party"
@@ -73,7 +74,7 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 	var opts []grpc.DialOption
 
 	// TLS for http proxy server
-	tlsCredentials, err := loadTLSCredentials(
+	tlsCredentials, err := h.LoadServerTLSCredentials(
 		set.ServerCertPath,
 		set.ServerKeyPath,
 		set.ServerCert,
@@ -89,7 +90,7 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 	// just load it if TLS is activated, not considered for edge-terminated TLS
 	var tlsClientCredentials credentials.TransportCredentials
 	if tlsCredentials != nil {
-		tlsClientCredentials, err = loadClientTLSCredentials(set.CaCertPath, set.CaCert)
+		tlsClientCredentials, err = h.LoadClientTLSCredentials(set.CaCertPath, set.CaCert)
 
 	}
 

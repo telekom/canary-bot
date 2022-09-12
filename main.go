@@ -87,12 +87,12 @@ func run(cmd *cobra.Command, args []string) {
 			set.ListenAddress = externalIP
 		}
 	}
-	if set.Domain == "" {
-		logger.Info("Domain flag not set - getting external IP automatically")
+	if set.JoinAddress == "" {
+		logger.Info("JoinAddress flag not set - getting external IP automatically")
 		if err != nil {
-			logger.Fatalln("Could not get external IP, please use domain flag")
+			logger.Fatalln("Could not get external IP, please use join-address flag")
 		} else {
-			set.Domain = externalIP + strconv.FormatInt(set.ListenPort, 10)
+			set.JoinAddress = externalIP + strconv.FormatInt(set.ListenPort, 10)
 		}
 	}
 
@@ -136,7 +136,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	// check TLS mode
-	if set.CaCert != nil || set.CaCertPath != "" {
+	if set.CaCert != nil || len(set.CaCertPath) > 0 {
 		if (set.ServerCert != nil || set.ServerCertPath != "") && (set.ServerKey != nil || set.ServerKeyPath != "") {
 			logger.Info("Mesh is set to mutal TLS mode")
 		} else {
@@ -169,7 +169,7 @@ func init() {
 	defaults = mesh.Settings{
 		Targets:        []string{},
 		Name:           "",
-		Domain:         "",
+		JoinAddress:    "",
 		ListenAddress:  "",
 		ListenPort:     8081,
 		ApiPort:        8080,
@@ -177,7 +177,7 @@ func init() {
 		ServerKeyPath:  "",
 		ServerCert:     nil,
 		ServerKey:      nil,
-		CaCertPath:     "",
+		CaCertPath:     []string{},
 		CaCert:         nil,
 		Tokens:         []string{},
 		Debug:          false,
@@ -188,9 +188,9 @@ func init() {
 
 	// ssttings for this node
 	cmd.Flags().StringVarP(&set.Name, "name", "n", defaults.Name, "Name of the node, has to be unique in mesh (mandatory)")
-	cmd.Flags().StringVarP(&set.ListenAddress, "bind-address", "a", defaults.ListenAddress, "Address or IP the server of the node will bind to; eg. 0.0.0.0, localhost (default outbound IP of the network interface)")
-	cmd.Flags().Int64VarP(&set.ListenPort, "bind-port", "b", defaults.ListenPort, "Listening port of this node")
-	cmd.Flags().StringVar(&set.Domain, "domain", defaults.Domain, "Domain of this node; nodes in the mesh will use the domain to connect; eg. test.de, localhost (default outbound IP of the network interface)")
+	cmd.Flags().StringVar(&set.ListenAddress, "listen-address", defaults.ListenAddress, "Address or IP the server of the node will bind to; eg. 0.0.0.0, localhost (default outbound IP of the network interface)")
+	cmd.Flags().Int64Var(&set.ListenPort, "listen-port", defaults.ListenPort, "Listening port of this node")
+	cmd.Flags().StringVar(&set.JoinAddress, "join-address", defaults.JoinAddress, "Address of this node; nodes in the mesh will use the domain to connect; eg. test.de, localhost (default outbound IP of the network interface)")
 
 	// API
 	cmd.Flags().Int64VarP(&set.ApiPort, "api-port", "p", defaults.ApiPort, "API port of this node")
@@ -202,8 +202,8 @@ func init() {
 	cmd.Flags().BytesBase64Var(&set.ServerKey, "server-key", defaults.ServerKey, "Base64 encoded server key, use with server-cert to enable TLS")
 
 	// TLS client side
-	cmd.Flags().StringVar(&set.CaCertPath, "ca-cert-path", defaults.CaCertPath, "Path to ca cert file to enable TLS")
-	cmd.Flags().BytesBase64Var(&set.CaCert, "ca-cert", defaults.CaCert, "Base64 encoded ca cert to enable TLS")
+	cmd.Flags().StringSliceVar(&set.CaCertPath, "ca-cert-path", defaults.CaCertPath, "Path to ca cert file/s to enable TLS")
+	cmd.Flags().BytesBase64Var(&set.CaCert, "ca-cert", defaults.CaCert, "Base64 encoded ca cert to enable TLS, support for multiple ca certs by ca-cert-path flag")
 
 	// Auth API
 	cmd.Flags().StringSliceVar(&set.Tokens, "token", defaults.Targets, "Comma-seperated or multi-flag list of tokens to protect the sample data API. (optional)")

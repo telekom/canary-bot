@@ -68,7 +68,7 @@ type Settings struct {
 
 	// local config
 	Name          string
-	Domain        string
+	JoinAddress   string
 	ListenAddress string
 	ListenPort    int64
 
@@ -81,7 +81,7 @@ type Settings struct {
 	ServerCert     []byte
 	ServerKey      []byte
 	// TLS client side
-	CaCertPath string
+	CaCertPath []string
 	CaCert     []byte
 
 	//Auth API
