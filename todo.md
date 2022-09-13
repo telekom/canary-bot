@@ -1,5 +1,5 @@
 MESH
-TODO better RTT
+TODO evaluate using grpc/http retry handler
 TODO net.ParseIP(ip) ValidateAddress in helper
 TODO database: remove node id and use unique node name
 TODO Error handling + Logging

@@ -27,6 +27,7 @@ type MeshServiceClient interface {
 	Ping(ctx context.Context, in *Node, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	NodeDiscovery(ctx context.Context, in *NodeDiscoveryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	PushSamples(ctx context.Context, in *Samples, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Rtt(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type meshServiceClient struct {
@@ -73,6 +74,15 @@ func (c *meshServiceClient) PushSamples(ctx context.Context, in *Samples, opts .
 	return out, nil
 }
 
+func (c *meshServiceClient) Rtt(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/mesh.v1.MeshService/Rtt", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MeshServiceServer is the server API for MeshService service.
 // All implementations must embed UnimplementedMeshServiceServer
 // for forward compatibility
@@ -81,6 +91,7 @@ type MeshServiceServer interface {
 	Ping(context.Context, *Node) (*emptypb.Empty, error)
 	NodeDiscovery(context.Context, *NodeDiscoveryRequest) (*emptypb.Empty, error)
 	PushSamples(context.Context, *Samples) (*emptypb.Empty, error)
+	Rtt(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedMeshServiceServer()
 }
 
@@ -99,6 +110,9 @@ func (UnimplementedMeshServiceServer) NodeDiscovery(context.Context, *NodeDiscov
 }
 func (UnimplementedMeshServiceServer) PushSamples(context.Context, *Samples) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushSamples not implemented")
+}
+func (UnimplementedMeshServiceServer) Rtt(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Rtt not implemented")
 }
 func (UnimplementedMeshServiceServer) mustEmbedUnimplementedMeshServiceServer() {}
 
@@ -185,6 +199,24 @@ func _MeshService_PushSamples_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MeshService_Rtt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MeshServiceServer).Rtt(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mesh.v1.MeshService/Rtt",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MeshServiceServer).Rtt(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MeshService_ServiceDesc is the grpc.ServiceDesc for MeshService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -207,6 +239,10 @@ var MeshService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushSamples",
 			Handler:    _MeshService_PushSamples_Handler,
+		},
+		{
+			MethodName: "Rtt",
+			Handler:    _MeshService_Rtt_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

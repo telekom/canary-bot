@@ -11,13 +11,15 @@ import (
 )
 
 const (
-	STATE = 1
-	RTT   = 2
+	STATE       = 1
+	RTT_TOTAL   = 2
+	RTT_REQUEST = 3
 )
 
 var SampleName = map[int64]string{
-	STATE: "state",
-	RTT:   "rtt",
+	STATE:       "state",
+	RTT_TOTAL:   "rtt_total",
+	RTT_REQUEST: "rtt_request",
 }
 
 type Database struct {

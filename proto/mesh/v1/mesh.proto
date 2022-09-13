@@ -11,6 +11,7 @@ service MeshService {
     rpc Ping(Node) returns (google.protobuf.Empty) {}
     rpc NodeDiscovery(NodeDiscoveryRequest) returns (google.protobuf.Empty) {}
     rpc PushSamples(Samples) returns (google.protobuf.Empty) {}
+    rpc Rtt(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
 message IAm {

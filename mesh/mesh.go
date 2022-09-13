@@ -28,6 +28,8 @@ type Mesh struct {
 	pushSampleTicker  *time.Ticker
 	cleanSampleTicker *time.Ticker
 
+	rttTicker *time.Ticker
+
 	quitJoinRoutine    chan bool
 	restartJoinRoutine chan bool
 	joinRoutineDone    bool
@@ -57,6 +59,9 @@ type Config struct {
 	// Clean samples
 	CleanSampleInterval time.Duration
 	SampleMaxAge        time.Duration
+
+	// Sample: RTT
+	RttInterval time.Duration
 
 	// User settings from flags and env vars
 	StartupSettings Settings
@@ -146,6 +151,10 @@ func (m *Mesh) timerRoutines() {
 	// Not used
 	quit := make(chan bool)
 
+	// Sample: RTT
+	m.rttTicker = time.NewTicker(m.config.RttInterval)
+	m.rttTicker.Stop()
+
 	for {
 		select {
 		case <-joinTicker.C:
@@ -206,6 +215,9 @@ func (m *Mesh) timerRoutines() {
 				}
 			}
 
+		case <-m.rttTicker.C:
+			go m.Rtt()
+
 		case <-quit:
 			// Not used
 			m.pingTicker.Stop()
@@ -219,6 +231,7 @@ func (m *Mesh) timerRoutines() {
 			m.pingTicker.Stop()
 			m.pushSampleTicker.Stop()
 			m.cleanSampleTicker.Stop()
+			m.rttTicker.Stop()
 			m.log.Debug("Start joinRoutine again, stopping all timer routines")
 		case <-m.quitJoinRoutine:
 			joinTicker.Stop()
@@ -227,6 +240,7 @@ func (m *Mesh) timerRoutines() {
 			m.pingTicker.Reset(m.config.PingInterval)
 			m.pushSampleTicker.Reset(m.config.PushSampleInterval)
 			m.cleanSampleTicker.Reset(m.config.CleanSampleInterval)
+			m.rttTicker.Reset(m.config.RttInterval)
 			m.log.Debug("Stop joinRoutine, starting all timer routines")
 		}
 	}
@@ -293,17 +307,7 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 	log := m.log.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
-		rtt, err := m.Ping(node)
-
-		m.database.SetSample(
-			&data.Sample{
-				From:  m.config.StartupSettings.Name,
-				To:    node.Name,
-				Key:   data.RTT,
-				Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
-				Ts:    time.Now().Unix(),
-			},
-		)
+		err := m.Ping(node)
 
 		if err == nil || r >= retries {
 			if err != nil {
