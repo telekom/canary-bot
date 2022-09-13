@@ -72,6 +72,10 @@ func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emp
 	return &emptypb.Empty{}, nil
 }
 
+func (s *MeshServer) Rtt(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
+}
+
 func (m *Mesh) StartServer() error {
 	meshServer := &MeshServer{
 		log:               m.log.Named("server"),

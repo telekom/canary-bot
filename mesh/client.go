@@ -5,12 +5,14 @@ import (
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
+	"math/rand"
 	"strconv"
 	"time"
 
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type MeshClient struct {
@@ -79,28 +81,25 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	return true, true
 }
 
-func (m *Mesh) Ping(node *meshv1.Node) (time.Duration, error) {
+func (m *Mesh) Ping(node *meshv1.Node) error {
 	log := m.log.Named("ping-routine")
 	err := m.initClient(node, false, false, false)
 	if err != nil {
 		log.Debugw("Could not connect to client")
-		return -1, err
+		return err
 	}
-	timeStart := time.Now()
 	_, err = m.clients[GetId(node)].client.Ping(
 		context.Background(),
 		&meshv1.Node{
 			Name:   m.config.StartupSettings.Name,
 			Target: m.config.StartupSettings.JoinAddress,
 		})
-	timeEnd := time.Now()
 	if err != nil {
 		log.Debugw("Ping failed")
-		return -1, err
+		return err
 	}
-	rtt := timeEnd.Sub(timeStart)
 
-	return rtt, nil
+	return nil
 }
 
 func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
@@ -208,4 +207,93 @@ func (m *Mesh) closeClient(to *meshv1.Node) {
 	// remove client
 	delete(m.clients, GetId(to))
 	m.mu.Unlock()
+}
+
+func (m *Mesh) Rtt() {
+	log := m.log.Named("rtt")
+	log.Debugw("Starting RTT measurement")
+	var opts []grpc.DialOption
+	var rttStartH, rttStart, rttEnd time.Time
+
+	nodes := m.database.GetNodeListByState(NODE_OK)
+	if nodes == nil {
+		log.Debugw("No Node suitable for RTT measurement")
+		return
+	}
+	// select random node for RTT measurment
+	node := nodes[rand.Intn(len(nodes))]
+	log.Debugw("Node selected", "node", node.Name)
+	// grpc logging
+	if m.config.StartupSettings.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
+	}
+
+	// TLS
+	tlsCredentials, err := h.LoadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
+	if err != nil {
+		log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
+	}
+
+	// blocking
+	opts = append(opts, grpc.WithBlock())
+
+	// start RTT with TCP handshake
+	rttStartH = time.Now()
+	// dial
+	conn, err := grpc.Dial(node.Target, opts...)
+	defer conn.Close()
+	if err != nil {
+		log.Debugw("Dial error", "error", err)
+		return
+	}
+
+	client := meshv1.NewMeshServiceClient(conn)
+	if err != nil {
+		log.Debugw("Could not connect to client")
+		return
+	}
+
+	// start RTT without TCP handshake
+	rttStart = time.Now()
+
+	// send request
+	_, err = client.Rtt(context.Background(), &emptypb.Empty{})
+	// end RTT
+	rttEnd = time.Now()
+
+	if err != nil {
+		log.Debugw("RTT failed")
+		return
+	}
+	log.Debugw("RTT succeded")
+	// RTT with handshake
+	rttH := rttEnd.Sub(rttStartH)
+	// RTT without handshale
+	rtt := rttEnd.Sub(rttStart)
+
+	// safe samples
+	m.database.SetSample(
+		&data.Sample{
+			From:  m.config.StartupSettings.Name,
+			To:    node.Name,
+			Key:   data.RTT_TOTAL,
+			Value: strconv.FormatInt(rttH.Nanoseconds(), 10),
+			Ts:    time.Now().Unix(),
+		},
+	)
+
+	m.database.SetSample(
+		&data.Sample{
+			From:  m.config.StartupSettings.Name,
+			To:    node.Name,
+			Key:   data.RTT_REQUEST,
+			Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
+			Ts:    time.Now().Unix(),
+		},
+	)
+
+	return
 }

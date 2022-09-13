@@ -130,6 +130,8 @@ func run(cmd *cobra.Command, args []string) {
 		CleanSampleInterval:   time.Second * 5,
 		SampleMaxAge:          time.Minute, //time.Hour * 24,
 
+		RttInterval: time.Second * 5,
+
 		StartupSettings: set,
 	}, logger)
 
