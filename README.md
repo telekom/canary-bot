@@ -58,3 +58,9 @@ address (optional; eg. 10.34.0.10, localhost) > external IP (form network interf
 - Client: needs CA Cert
 - Server: needs Server Cert & Server Key
 - use: ca-cert, server-cert, server-key flags
+
+
+JoinAddress
+ServerAddress
+ServerPort
+Target

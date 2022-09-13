@@ -2,19 +2,15 @@ package mesh
 
 import (
 	"canary-bot/data"
+	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
-	"errors"
-	"fmt"
-	"io/ioutil"
+	"math/rand"
 	"strconv"
 	"time"
 
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -25,82 +21,90 @@ type MeshClient struct {
 }
 
 //bool NameUnique
-func (m *Mesh) Join(to []*meshv1.Node) (bool, error) {
+func (m *Mesh) Join(targets []string) (bool, bool) {
 	log := m.log.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
 	log.Debugw("Starting")
 
-	for index, node := range to {
-		err := m.initClient(node)
+	for index, target := range targets {
+		log.Debugf("Index %+v Targets: %+v", index, targets)
+		node := &meshv1.Node{Name: "", Target: target}
+
+		err := m.initClient(node, false, false, false)
 		if err != nil {
-			if index != len(to)-1 {
+			m.log.Debug("Could not connect to client, joinMesh request failed")
+			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
 				continue
 			}
-			log.Debugw("Error", "error", err)
-			return true, err
+			return false, true
 		}
 
 		res, err = m.clients[GetId(node)].client.JoinMesh(
 			context.Background(),
-			&meshv1.JoinMeshRequest{IAmNode: &meshv1.Node{
+			&meshv1.Node{
 				Name:   m.config.StartupSettings.Name,
-				Target: m.config.StartupSettings.Domain,
-			}})
+				Target: m.config.StartupSettings.JoinAddress,
+			})
 
 		if err != nil {
-			if index != len(to)-1 {
+			m.log.Debug("Client connected, but joinMesh request failed")
+			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
 				continue
 			}
-			m.log.Debugf("Error: %+v", err)
-			return true, err
+			return false, true
 		}
 
 		// check if name of node is unique in mesh response
 		if !res.NameUnique {
 			log.Debugw("Node name is not unique in mesh")
-			return false, nil
+			return true, false
 		}
 
 		// save join-requested node as node in mesh
 		node.Name = res.MyName
 		m.database.SetNode(data.Convert(node, NODE_OK))
+		//m.clients[GetId(node)].conn.Close()
+
+		log.Infow("Joined mesh", "name", node.Name, "target", node.Target)
+		break
 	}
 	for _, node := range res.Nodes {
 		if GetId(node) != GetId(&meshv1.Node{
 			Name:   m.config.StartupSettings.Name,
-			Target: m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10),
+			Target: m.config.StartupSettings.JoinAddress,
 		}) {
 			m.database.SetNode(data.Convert(node, NODE_OK))
 		}
 	}
-
-	return true, nil
+	return true, true
 }
 
-func (m *Mesh) Ping(node *meshv1.Node) (time.Duration, error) {
+func (m *Mesh) Ping(node *meshv1.Node) error {
 	log := m.log.Named("ping-routine")
-	err := m.initClient(node)
+	err := m.initClient(node, false, false, false)
 	if err != nil {
 		log.Debugw("Could not connect to client")
-		return -1, err
+		return err
 	}
-	timeStart := time.Now()
-	_, err = m.clients[GetId(node)].client.Ping(context.Background(), &emptypb.Empty{})
-	timeEnd := time.Now()
+	_, err = m.clients[GetId(node)].client.Ping(
+		context.Background(),
+		&meshv1.Node{
+			Name:   m.config.StartupSettings.Name,
+			Target: m.config.StartupSettings.JoinAddress,
+		})
 	if err != nil {
 		log.Debugw("Ping failed")
-		return -1, err
+		return err
 	}
-	rtt := timeEnd.Sub(timeStart)
 
-	return rtt, nil
+	return nil
 }
 
 func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 	log := m.log.Named("discovery-routine")
-	err := m.initClient(toNode)
+	err := m.initClient(toNode, false, false, false)
 	if err != nil {
 		log.Warnw("Could not connect to client - skip Node Discover Request", "node", toNode.Name)
 		return
@@ -121,7 +125,7 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 
 func (m *Mesh) PushSamples(node *meshv1.Node) error {
 	log := m.log.Named("sample-routine")
-	err := m.initClient(node)
+	err := m.initClient(node, false, false, false)
 	if err != nil {
 		log.Debugw("Could not connect to client")
 		return err
@@ -145,22 +149,38 @@ func (m *Mesh) PushSamples(node *meshv1.Node) error {
 	return nil
 }
 
-func (m *Mesh) initClient(to *meshv1.Node) error {
+func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconnect bool) error {
 	nodeId := GetId(to)
 	log := m.log.Named("client")
 	log.Debugw("Init client")
 
+	if m.config.StartupSettings.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
+	}
+
 	if _, exists := m.clients[nodeId]; !exists {
 		var opts []grpc.DialOption
-		//opts = append(opts, grpc.WithBlock())
+
 		// TLS
-		tlsCredentials, err := loadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
+		tlsCredentials, err := h.LoadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
 		if err != nil {
 			log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
 			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		} else {
 			opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
 		}
+
+		// blocking
+		if blocking {
+			opts = append(opts, grpc.WithBlock())
+		}
+
+		// wait for connection
+		if wait {
+			opts = append(opts, grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
+		}
+
+		// dial
 		conn, err := grpc.Dial(to.Target, opts...)
 		if err != nil {
 			log.Debugw("Dial error", "error", err)
@@ -181,37 +201,99 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 	return nil
 }
 
-func (c *MeshClient) closeClient() {
-	c.conn.Close()
+func (m *Mesh) closeClient(to *meshv1.Node) {
+	m.mu.Lock()
+	m.clients[GetId(to)].conn.Close()
+	// remove client
+	delete(m.clients, GetId(to))
+	m.mu.Unlock()
 }
 
-func loadClientTLSCredentials(caCert_Path string, caCert_b64 []byte) (credentials.TransportCredentials, error) {
-	// Load certificate of the CA who signed server certificate
+func (m *Mesh) Rtt() {
+	log := m.log.Named("rtt")
+	log.Debugw("Starting RTT measurement")
+	var opts []grpc.DialOption
+	var rttStartH, rttStart, rttEnd time.Time
 
-	var pemServerCA []byte
-	var err error
-
-	if caCert_Path != "" {
-		pemServerCA, err = ioutil.ReadFile(caCert_Path)
-	} else if caCert_b64 != nil {
-		_, err = base64.StdEncoding.Decode(pemServerCA, caCert_b64)
-	} else {
-		return nil, errors.New("Neither ca cert path nor base64 encoded ca cert set")
+	nodes := m.database.GetNodeListByState(NODE_OK)
+	if nodes == nil {
+		log.Debugw("No Node suitable for RTT measurement")
+		return
 	}
+	// select random node for RTT measurment
+	node := nodes[rand.Intn(len(nodes))]
+	log.Debugw("Node selected", "node", node.Name)
+	// grpc logging
+	if m.config.StartupSettings.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
+	}
+
+	// TLS
+	tlsCredentials, err := h.LoadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
+	if err != nil {
+		log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
+	}
+
+	// blocking
+	opts = append(opts, grpc.WithBlock())
+
+	// start RTT with TCP handshake
+	rttStartH = time.Now()
+	// dial
+	conn, err := grpc.Dial(node.Target, opts...)
+	defer conn.Close()
+	if err != nil {
+		log.Debugw("Dial error", "error", err)
+		return
+	}
+
+	client := meshv1.NewMeshServiceClient(conn)
+	if err != nil {
+		log.Debugw("Could not connect to client")
+		return
+	}
+
+	// start RTT without TCP handshake
+	rttStart = time.Now()
+
+	// send request
+	_, err = client.Rtt(context.Background(), &emptypb.Empty{})
+	// end RTT
+	rttEnd = time.Now()
 
 	if err != nil {
-		return nil, err
+		log.Debugw("RTT failed")
+		return
 	}
+	log.Debugw("RTT succeded")
+	// RTT with handshake
+	rttH := rttEnd.Sub(rttStartH)
+	// RTT without handshale
+	rtt := rttEnd.Sub(rttStart)
 
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, fmt.Errorf("Failed to add server ca certificate")
-	}
+	// safe samples
+	m.database.SetSample(
+		&data.Sample{
+			From:  m.config.StartupSettings.Name,
+			To:    node.Name,
+			Key:   data.RTT_TOTAL,
+			Value: strconv.FormatInt(rttH.Nanoseconds(), 10),
+			Ts:    time.Now().Unix(),
+		},
+	)
 
-	// Create the credentials and return it
-	config := &tls.Config{
-		RootCAs: certPool,
-	}
+	m.database.SetSample(
+		&data.Sample{
+			From:  m.config.StartupSettings.Name,
+			To:    node.Name,
+			Key:   data.RTT_REQUEST,
+			Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
+			Ts:    time.Now().Unix(),
+		},
+	)
 
-	return credentials.NewTLS(config), nil
+	return
 }

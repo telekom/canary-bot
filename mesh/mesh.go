@@ -23,9 +23,22 @@ type Mesh struct {
 
 	newNodeDiscovered chan NodeDiscovered
 	timeoutNode       chan *meshv1.Node
+
+	pingTicker        *time.Ticker
+	pushSampleTicker  *time.Ticker
+	cleanSampleTicker *time.Ticker
+
+	rttTicker *time.Ticker
+
+	quitJoinRoutine    chan bool
+	restartJoinRoutine chan bool
+	joinRoutineDone    bool
 }
 
 type Config struct {
+	// Join config
+	JoinInterval time.Duration
+
 	// Ping config
 	PingInterval       time.Duration
 	PingRetryAmount    int
@@ -43,6 +56,13 @@ type Config struct {
 	PushSampleRetryAmount int
 	PushSampleRetryDelay  time.Duration
 
+	// Clean samples
+	CleanSampleInterval time.Duration
+	SampleMaxAge        time.Duration
+
+	// Sample: RTT
+	RttInterval time.Duration
+
 	// User settings from flags and env vars
 	StartupSettings Settings
 }
@@ -54,7 +74,7 @@ type Settings struct {
 
 	// local config
 	Name          string
-	Domain        string
+	JoinAddress   string
 	ListenAddress string
 	ListenPort    int64
 
@@ -67,14 +87,15 @@ type Settings struct {
 	ServerCert     []byte
 	ServerKey      []byte
 	// TLS client side
-	CaCertPath string
+	CaCertPath []string
 	CaCert     []byte
 
 	//Auth API
 	Tokens []string
 
 	//Logging
-	Debug bool
+	Debug     bool
+	DebugGrpc bool
 }
 
 type NodeDiscovered struct {
@@ -86,16 +107,20 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 	defer logger.Sync()
 
 	m := &Mesh{
-		database:          db,
-		log:               logger,
-		config:            conf,
-		clients:           map[uint32]*MeshClient{},
-		newNodeDiscovered: make(chan NodeDiscovered),
-		timeoutNode:       make(chan *meshv1.Node),
+		database:           db,
+		log:                logger,
+		config:             conf,
+		clients:            map[uint32]*MeshClient{},
+		newNodeDiscovered:  make(chan NodeDiscovered),
+		timeoutNode:        make(chan *meshv1.Node),
+		quitJoinRoutine:    make(chan bool, 1),
+		restartJoinRoutine: make(chan bool, 1),
+		joinRoutineDone:    false,
 	}
-	m.log.Info("Starting Mesh")
+	m.log.Info("Starting mesh")
 
 	go func() {
+		m.log.Info("Starting server, listening vor joining nodes")
 		err := m.StartServer()
 		if err != nil {
 			m.log.Debugf("Mesh server error: %+v", err)
@@ -103,27 +128,49 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 		}
 	}()
 
-	m.log.Infow("Starting routines")
-
+	m.log.Infow("Starting mesh routines")
 	go m.channelRoutines()
-
 	go m.timerRoutines()
 
 	return m, nil
 }
 
 func (m *Mesh) timerRoutines() {
-	// Timer to send ping to node
-	pingTicker := time.NewTicker(m.config.PingInterval)
-	// Timer to send samples to node
-	pushSampleTicker := time.NewTicker(m.config.PushSampleInterval)
 
+	// Timer to send ping to node
+	joinTicker := time.NewTicker(m.config.JoinInterval)
+	// Timer to send ping to node
+	m.pingTicker = time.NewTicker(m.config.PingInterval)
+	m.pingTicker.Stop()
+	// Timer to send samples to node
+	m.pushSampleTicker = time.NewTicker(m.config.PushSampleInterval)
+	m.pushSampleTicker.Stop()
+	// Timer to clean sampels from removed nodes
+	m.cleanSampleTicker = time.NewTicker(m.config.CleanSampleInterval)
+	m.cleanSampleTicker.Stop()
 	// Not used
-	quit := make(chan struct{})
+	quit := make(chan bool)
+
+	// Sample: RTT
+	m.rttTicker = time.NewTicker(m.config.RttInterval)
+	m.rttTicker.Stop()
 
 	for {
 		select {
-		case <-pingTicker.C:
+		case <-joinTicker.C:
+			log := m.log.Named("join-routine")
+			// join (future) mesh
+			log.Infow("Waiting for a node to join a mesh...")
+			connected, isNameUniqueInMesh := m.Join(m.config.StartupSettings.Targets)
+			if !isNameUniqueInMesh {
+				log.Fatal("The name is not unique in the mesh, please choose another one.")
+				// TODO generate random node name?
+			}
+			if connected {
+				m.quitJoinRoutine <- true
+			}
+
+		case <-m.pingTicker.C:
 			log := m.log.Named("ping-routine")
 			log.Debugw("Starting")
 			nodes := m.database.GetNodeListByState(NODE_OK)
@@ -134,7 +181,7 @@ func (m *Mesh) timerRoutines() {
 
 			go m.RetryPing(context.Background(), nodes[rand.Intn(len(nodes))].Convert(), m.config.PingRetryAmount, m.config.PingRetryDelay, false)
 
-		case <-pushSampleTicker.C:
+		case <-m.pushSampleTicker.C:
 			log := m.log.Named("sample-routine")
 			log.Debugw("Starting push sample routine to random nodes", "amount", m.config.PushSampleToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
@@ -159,12 +206,42 @@ func (m *Mesh) timerRoutines() {
 				nodes = nodes[:len(nodes)-1]
 
 			}
+		case <-m.cleanSampleTicker.C:
+			// check if sample is too old and delete
+			for _, sample := range m.database.GetSampleList() {
+				if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.config.SampleMaxAge)) {
+					m.log.Infow("Delete old sample", "from", sample.From, "to", sample.To, "key", data.SampleName[sample.Key], "maxAge", m.config.SampleMaxAge.String())
+					m.database.DeleteSample(sample.Id)
+				}
+			}
+
+		case <-m.rttTicker.C:
+			go m.Rtt()
 
 		case <-quit:
 			// Not used
-			pingTicker.Stop()
-			pushSampleTicker.Stop()
+			m.pingTicker.Stop()
+			m.pushSampleTicker.Stop()
 			return
+
+		case <-m.restartJoinRoutine:
+			joinTicker.Reset(m.config.JoinInterval)
+			m.joinRoutineDone = false
+			// starting ticker after join routine
+			m.pingTicker.Stop()
+			m.pushSampleTicker.Stop()
+			m.cleanSampleTicker.Stop()
+			m.rttTicker.Stop()
+			m.log.Debug("Start joinRoutine again, stopping all timer routines")
+		case <-m.quitJoinRoutine:
+			joinTicker.Stop()
+			m.joinRoutineDone = true
+			// starting ticker after join routine
+			m.pingTicker.Reset(m.config.PingInterval)
+			m.pushSampleTicker.Reset(m.config.PushSampleInterval)
+			m.cleanSampleTicker.Reset(m.config.CleanSampleInterval)
+			m.rttTicker.Reset(m.config.RttInterval)
+			m.log.Debug("Stop joinRoutine, starting all timer routines")
 		}
 	}
 }
@@ -174,12 +251,16 @@ func (m *Mesh) channelRoutines() {
 		select {
 		case nodeDiscovered := <-m.newNodeDiscovered:
 			log := m.log.Named("discovery-routine")
+			// quit joinMesh routine if discovery is received before
+			if !m.joinRoutineDone {
+				m.quitJoinRoutine <- true
+			}
 			if m.database.GetNodeByName(nodeDiscovered.NewNode.Name).Id != 0 {
 				log.Info("Node is rejoining node")
 				m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
 				break
 			}
-			log.Debug("Node joined - new node")
+			log.Info("Node joined - new node")
 
 			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.config.BroadcastToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
@@ -226,17 +307,7 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 	log := m.log.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
-		rtt, err := m.Ping(node)
-
-		m.database.SetSample(
-			&data.Sample{
-				From:  m.config.StartupSettings.Name,
-				To:    node.Name,
-				Key:   data.RTT,
-				Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
-				Ts:    time.Now().Unix(),
-			},
-		)
+		err := m.Ping(node)
 
 		if err == nil || r >= retries {
 			if err != nil {
@@ -246,9 +317,13 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 					m.timeoutNode <- node
 				} else {
 					m.database.DeleteNode(GetId(node))
+					if len(m.database.GetNodeList()) == 0 {
+						m.restartJoinRoutine <- true
+					}
 					log.Warnw("Removed node from mesh", "node", node.Name)
 				}
 			} else {
+				m.database.SetNode(data.Convert(node, NODE_OK))
 				log.Infow("Ping ok", "node", node.Name)
 			}
 			break
