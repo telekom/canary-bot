@@ -1,66 +1,54 @@
-V3 - just grpc +buf cli
+# Usage
 
-https://connect.build/docs/go/getting-started
+Run `cbot --help` for futher information.
 
-go install github.com/bufbuild/buf/cmd/buf@latest
-go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
+## the network
 
-buf lint
-buf generate
+To separate different szenarios like starting the bot on a dedicated host or e.g. a Kubernetes cluster we introduced the `join-address` and `listen-address` flag.
 
-docker build -t mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest . && \
-docker push mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest
+JoinMesh Request to tell the joining mesh who I am - the public connection point:
+`join-address` (optional; eg. test.de:443, localhost:8080) > external IP (form network interface)
 
-# Analyse Memory
-https://go.dev/blog/pprof
-https://pkg.go.dev/net/http/pprof
+Listen server address & port - the real listening settings of the grpc server:
+`listen-address` (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)
 
-go tool pprof http://localhost:6060/debug/pprof/profile   # 30-second CPU profile
-go tool pprof http://localhost:6060/debug/pprof/heap      # heap profile
-go tool pprof http://localhost:6060/debug/pprof/block     # goroutine blocking profile
+### 1. Szenario: Kubernetes cluster
 
-go tool pprof -http=:8082 http://localhost:6060/debug/pprof/profile
-?seconds=30
+The kubernetes ingress controller will listen on my-ingress-domain.com on port 443 (https). It redirects incomming http request via a service to the running pod listening on its internal ip on port 8080.
 
-# Remote Debug
-dlv debug --listen=:8088 --headless
+```
+... --join-address my-ingress-domain.com:443 --listen-port 8080 ...
+```
+
+### 2. Szenario: Dedicated host
+
+The bot is running on a public ip (x.x.x.x) and listens on port 8081 for mesh requests.
+
+```
+... --listen-port 8081 ...
+```
+
+## TLS
 
 
-# API gRPC
-grpcurl -import-path proto/api/v1  -proto api.proto -cacert cert/ca-cert.pem localhost:8080 api.v1.SampleService/ListSamples
-
-https://test-max-bot1.caas-t02.telekom.de/api/v1/
-
-grpcurl -import-path proto/mesh/v1 -proto mesh.proto test-max-bot1-mesh.caas-t02.telekom.de:443 mesh.v1.MeshService/Ping
-
-go run main.go -a localhost -p 8095 -l 8096 -n second -t localhost:8081
-
-TTL basiert 
-
-# the network
-Mesh Join: telling the joining mesh who I am:
-domain (optional; eg. test.de, localhost) > external IP (form network interface)
-
-Bind Server address: where to listen:
-address (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)
-
-# mesh TLS
 1. No TLS
+
 - nothing todo
+
 2. edge terminated TLS
+
 - eg. in a Kubenetes Cluster with NGINX Ingress Controller
 - Client: needs CA Cert
 - Server: nothing todo, TLS is terminated before reaching server
-- use: ca-cert flag
+- use: `ca-cert` flag
+
 2. e2e Mutal TLS
+
 - Client: needs CA Cert
 - Server: needs Server Cert & Server Key
-- use: ca-cert, server-cert, server-key flags
+- use: `ca-cert`, `server-cert`, `server-key` flags
 
+# Logic
 
-JoinAddress
-ServerAddress
-ServerPort
-Target
+Have a deeper look at the canary logic [here](logic.md)
+
