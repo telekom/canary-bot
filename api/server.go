@@ -17,6 +17,8 @@ import (
 	apiv1 "canary-bot/proto/api/v1"
 	apiv1connect "canary-bot/proto/api/v1/apiv1connect"
 
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+
 	connect "github.com/bufbuild/connect-go"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
@@ -69,6 +71,10 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 		data: data,
 		set:  set,
 		log:  log,
+	}
+
+	if set.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
 	}
 
 	var opts []grpc.DialOption

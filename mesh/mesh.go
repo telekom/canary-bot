@@ -28,8 +28,9 @@ type Mesh struct {
 	pushSampleTicker  *time.Ticker
 	cleanSampleTicker *time.Ticker
 
-	quitJoinRoutine chan bool
-	joinRoutineDone bool
+	quitJoinRoutine    chan bool
+	restartJoinRoutine chan bool
+	joinRoutineDone    bool
 }
 
 type Config struct {
@@ -88,7 +89,8 @@ type Settings struct {
 	Tokens []string
 
 	//Logging
-	Debug bool
+	Debug     bool
+	DebugGrpc bool
 }
 
 type NodeDiscovered struct {
@@ -100,14 +102,15 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 	defer logger.Sync()
 
 	m := &Mesh{
-		database:          db,
-		log:               logger,
-		config:            conf,
-		clients:           map[uint32]*MeshClient{},
-		newNodeDiscovered: make(chan NodeDiscovered),
-		timeoutNode:       make(chan *meshv1.Node),
-		quitJoinRoutine:   make(chan bool, 1),
-		joinRoutineDone:   false,
+		database:           db,
+		log:                logger,
+		config:             conf,
+		clients:            map[uint32]*MeshClient{},
+		newNodeDiscovered:  make(chan NodeDiscovered),
+		timeoutNode:        make(chan *meshv1.Node),
+		quitJoinRoutine:    make(chan bool, 1),
+		restartJoinRoutine: make(chan bool, 1),
+		joinRoutineDone:    false,
 	}
 	m.log.Info("Starting mesh")
 
@@ -208,6 +211,15 @@ func (m *Mesh) timerRoutines() {
 			m.pingTicker.Stop()
 			m.pushSampleTicker.Stop()
 			return
+
+		case <-m.restartJoinRoutine:
+			joinTicker.Reset(m.config.JoinInterval)
+			m.joinRoutineDone = false
+			// starting ticker after join routine
+			m.pingTicker.Stop()
+			m.pushSampleTicker.Stop()
+			m.cleanSampleTicker.Stop()
+			m.log.Debug("Start joinRoutine again, stopping all timer routines")
 		case <-m.quitJoinRoutine:
 			joinTicker.Stop()
 			m.joinRoutineDone = true
@@ -234,7 +246,7 @@ func (m *Mesh) channelRoutines() {
 				m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
 				break
 			}
-			log.Debug("Node joined - new node")
+			log.Info("Node joined - new node")
 
 			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.config.BroadcastToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
@@ -301,6 +313,9 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 					m.timeoutNode <- node
 				} else {
 					m.database.DeleteNode(GetId(node))
+					if len(m.database.GetNodeList()) == 0 {
+						m.restartJoinRoutine <- true
+					}
 					log.Warnw("Removed node from mesh", "node", node.Name)
 				}
 			} else {

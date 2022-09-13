@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -24,15 +25,16 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	log.Debugw("Starting")
 
 	for index, target := range targets {
+		log.Debugf("Index %+v Targets: %+v", index, targets)
 		node := &meshv1.Node{Name: "", Target: target}
 
 		err := m.initClient(node, false, false, false)
 		if err != nil {
+			m.log.Debug("Could not connect to client, joinMesh request failed")
 			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
 				continue
 			}
-			m.log.Debug("Could not connect to client, joinMesh request failed")
 			return false, true
 		}
 
@@ -44,11 +46,11 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 			})
 
 		if err != nil {
+			m.log.Debug("Client connected, but joinMesh request failed")
 			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
 				continue
 			}
-			m.log.Debug("Client connected, but joinMesh request failed")
 			return false, true
 		}
 
@@ -69,7 +71,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	for _, node := range res.Nodes {
 		if GetId(node) != GetId(&meshv1.Node{
 			Name:   m.config.StartupSettings.Name,
-			Target: m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10),
+			Target: m.config.StartupSettings.JoinAddress,
 		}) {
 			m.database.SetNode(data.Convert(node, NODE_OK))
 		}
@@ -152,6 +154,10 @@ func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconn
 	nodeId := GetId(to)
 	log := m.log.Named("client")
 	log.Debugw("Init client")
+
+	if m.config.StartupSettings.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
+	}
 
 	if _, exists := m.clients[nodeId]; !exists {
 		var opts []grpc.DialOption

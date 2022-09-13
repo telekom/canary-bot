@@ -67,6 +67,8 @@ func run(cmd *cobra.Command, args []string) {
 	defer zapLogger.Sync()
 	logger := zapLogger.Sugar()
 
+	logger.Debugf("CLI settings: %+v", set)
+
 	// validate if node name for this node is set
 	if set.Name == defaults.Name {
 		logger.Fatalln("Please set a name for the creating node. It has to be unique in the mesh.")
@@ -210,6 +212,7 @@ func init() {
 
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")
+	cmd.Flags().BoolVar(&set.DebugGrpc, "debug-grpc", defaults.DebugGrpc, "Enable more logging for grpc")
 
 }
 

@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 )
 
 type MeshServer struct {
@@ -76,6 +78,10 @@ func (m *Mesh) StartServer() error {
 		data:              &m.database,
 		name:              &m.config.StartupSettings.Name,
 		newNodeDiscovered: m.newNodeDiscovered,
+	}
+
+	if m.config.StartupSettings.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(meshServer.log.Named("grpc").Desugar())
 	}
 
 	listenAdd := m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10)
