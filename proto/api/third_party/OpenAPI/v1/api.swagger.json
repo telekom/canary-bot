@@ -1,0 +1,108 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "v1/api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "SampleService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/samples": {
+      "get": {
+        "operationId": "SampleService_ListSamples",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSampleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "SampleService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListSampleResponse": {
+      "type": "object",
+      "properties": {
+        "samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Sample"
+          },
+          "title": "list of messured samples"
+        }
+      }
+    },
+    "v1Sample": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "title": "by whom the sample was messured"
+        },
+        "to": {
+          "type": "string",
+          "title": "to whom the sample was messured"
+        },
+        "sample": {
+          "type": "string",
+          "title": "the sample name"
+        },
+        "value": {
+          "type": "string",
+          "title": "the sample value"
+        },
+        "ts": {
+          "type": "string",
+          "title": "when the sample was messured"
+        }
+      }
+    }
+  }
+}

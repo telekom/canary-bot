@@ -7,13 +7,14 @@ import "google/protobuf/empty.proto";
 option go_package = "canary-bot/proto/gen/mesh/v1;meshv1";
 
 service MeshService {
-    rpc JoinMesh(JoinMeshRequest) returns (JoinMeshResponse) {}
-    rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc JoinMesh(Node) returns (JoinMeshResponse) {}
+    rpc Ping(Node) returns (google.protobuf.Empty) {}
     rpc NodeDiscovery(NodeDiscoveryRequest) returns (google.protobuf.Empty) {}
-    rpc PushProbes(Probes) returns (google.protobuf.Empty) {}
+    rpc PushSamples(Samples) returns (google.protobuf.Empty) {}
+    rpc Rtt(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
-message JoinMeshRequest {
+message IAm {
     Node i_am_node = 1;
 }
 
@@ -33,11 +34,11 @@ message Node {
     string target = 2;
 }
 
-message Probes {
-    repeated Probe probes = 1;
+message Samples {
+    repeated Sample samples = 1;
 }
 
-message Probe {
+message Sample {
 	string from = 1;
 	string to = 2;
     int64 key = 3;

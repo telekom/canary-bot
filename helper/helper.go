@@ -1,11 +1,20 @@
 package helper
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"hash/fnv"
+	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"regexp"
+	"time"
+
+	"google.golang.org/grpc/credentials"
 )
 
 func ExternalIP() (string, error) {
@@ -77,4 +86,100 @@ func Hash(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return h.Sum32()
+}
+
+// ------------------
+const charset = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+	"0123456789"
+
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
+
+func stringWithCharset(length int, charset string) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+func GenerateRandomToken(length int) string {
+	return stringWithCharset(length, charset)
+}
+
+//------------------
+func Equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// TLS -----------------
+func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credentials.TransportCredentials, error) {
+	// Load certificate of the CA who signed server certificate
+
+	certPool := x509.NewCertPool()
+
+	if len(caCert_Paths) > 0 {
+		for _, path := range caCert_Paths {
+			pemServerCA, err := ioutil.ReadFile(path)
+			if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
+				return nil, fmt.Errorf("Failed to add server ca certificate")
+			}
+		}
+	} else if caCert_b64 != nil {
+		var pemServerCA []byte
+		_, err := base64.StdEncoding.Decode(pemServerCA, caCert_b64)
+		if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
+			return nil, fmt.Errorf("Failed to add server ca certificate")
+		}
+	} else {
+		return nil, errors.New("Neither ca cert path nor base64 encoded ca cert set")
+	}
+
+	// Create the credentials and return it
+	config := &tls.Config{
+		RootCAs: certPool,
+	}
+
+	return credentials.NewTLS(config), nil
+}
+
+func LoadServerTLSCredentials(serverCert_path string, serverKey_path string, serverCert_b64 []byte, serverKey_b64 []byte) (*tls.Config, error) {
+	// Load server certificate and key //credentials.NewTLS(config)
+	var serverCert tls.Certificate
+	var err error
+
+	if serverCert_path != "" && serverKey_path != "" {
+		serverCert, err = tls.LoadX509KeyPair(serverCert_path, serverKey_path)
+	} else if serverCert_b64 != nil && serverKey_b64 != nil {
+		var cert []byte
+		var key []byte
+		_, err = base64.StdEncoding.Decode(cert, serverCert_b64)
+		if err != nil {
+			return nil, err
+		}
+		_, err = base64.StdEncoding.Decode(key, serverCert_b64)
+		serverCert, err = tls.X509KeyPair(cert, key)
+	} else {
+		return nil, errors.New("Neither server cert and key path nor base64 encoded cert and key set")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.NoClientCert,
+	}
+
+	return config, nil
 }

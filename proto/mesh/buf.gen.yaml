@@ -1,10 +1,10 @@
 version: v1
 plugins:
   - remote: buf.build/protocolbuffers/plugins/go
-    out: gen
+    out: .
     opt:
       - paths=source_relative
   - remote: buf.build/grpc/plugins/go
-    out: gen
+    out: .
     opt:
       - paths=source_relative

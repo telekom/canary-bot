@@ -10,7 +10,7 @@ go install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
 buf lint
 buf generate
 
-docker build -t mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest .
+docker build -t mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest . && \
 docker push mtr.devops.telekom.de/maximilian_schubert/canary-bot:latest
 
 # Analyse Memory
@@ -26,3 +26,41 @@ go tool pprof -http=:8082 http://localhost:6060/debug/pprof/profile
 
 # Remote Debug
 dlv debug --listen=:8088 --headless
+
+
+# API gRPC
+grpcurl -import-path proto/api/v1  -proto api.proto -cacert cert/ca-cert.pem localhost:8080 api.v1.SampleService/ListSamples
+
+https://test-max-bot1.caas-t02.telekom.de/api/v1/
+
+grpcurl -import-path proto/mesh/v1 -proto mesh.proto test-max-bot1-mesh.caas-t02.telekom.de:443 mesh.v1.MeshService/Ping
+
+go run main.go -a localhost -p 8095 -l 8096 -n second -t localhost:8081
+
+TTL basiert 
+
+# the network
+Mesh Join: telling the joining mesh who I am:
+domain (optional; eg. test.de, localhost) > external IP (form network interface)
+
+Bind Server address: where to listen:
+address (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)
+
+# mesh TLS
+1. No TLS
+- nothing todo
+2. edge terminated TLS
+- eg. in a Kubenetes Cluster with NGINX Ingress Controller
+- Client: needs CA Cert
+- Server: nothing todo, TLS is terminated before reaching server
+- use: ca-cert flag
+2. e2e Mutal TLS
+- Client: needs CA Cert
+- Server: needs Server Cert & Server Key
+- use: ca-cert, server-cert, server-key flags
+
+
+JoinAddress
+ServerAddress
+ServerPort
+Target

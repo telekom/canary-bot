@@ -2,20 +2,20 @@ package mesh
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/base64"
-	"errors"
 	"net"
 	"strconv"
 
 	"canary-bot/data"
-	meshv1 "canary-bot/proto/gen/mesh/v1"
+	h "canary-bot/helper"
+	meshv1 "canary-bot/proto/mesh/v1"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 )
 
 type MeshServer struct {
@@ -27,14 +27,14 @@ type MeshServer struct {
 	newNodeDiscovered chan NodeDiscovered
 }
 
-func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.JoinMeshRequest) (*meshv1.JoinMeshResponse, error) {
-	s.log.Infow("New join mesh request", "node", req.IAmNode.Name)
-	// Check if name of joining node is unique in mesh, let join if state is not ok
-	dbnode := s.data.GetNodeByName(req.IAmNode.Name)
-	if (dbnode.Id != 0 && dbnode.State == NODE_OK) || *s.name == req.IAmNode.Name {
+func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.JoinMeshResponse, error) {
+	s.log.Infow("New join mesh request", "node", req.Name)
+	// Check if name of joining node is unique in mesh, let join if state is not ok, let join if target is same
+	dbnode := s.data.GetNodeByName(req.Name)
+	if (dbnode.Id != 0 && dbnode.State == NODE_OK && dbnode.Target != req.Target) || *s.name == req.Name {
 		return &meshv1.JoinMeshResponse{NameUnique: false, MyName: *s.name, Nodes: []*meshv1.Node{}}, nil
 	}
-	s.newNodeDiscovered <- NodeDiscovered{req.IAmNode, GetId(req.IAmNode)}
+	s.newNodeDiscovered <- NodeDiscovered{req, GetId(req)}
 
 	var nodes []*meshv1.Node
 	for _, datanode := range s.data.GetNodeList() {
@@ -44,7 +44,10 @@ func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.JoinMeshRequest) 
 	return &res, nil
 }
 
-func (s *MeshServer) Ping(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
+func (s *MeshServer) Ping(ctx context.Context, req *meshv1.Node) (*emptypb.Empty, error) {
+	if req != nil {
+		s.data.SetNode(data.Convert(req, NODE_OK))
+	}
 	return &emptypb.Empty{}, nil
 }
 
@@ -53,19 +56,23 @@ func (s *MeshServer) NodeDiscovery(ctx context.Context, req *meshv1.NodeDiscover
 	return &emptypb.Empty{}, nil
 }
 
-func (s *MeshServer) PushProbes(ctx context.Context, req *meshv1.Probes) (*emptypb.Empty, error) {
-	for _, probe := range req.Probes {
-		if probe.Ts > s.data.GetProbeTs(GetProbeId(probe)) {
-			s.data.SetProbe(&data.Probe{
-				From:  probe.From,
-				To:    probe.To,
-				Key:   probe.Key,
-				Value: probe.Value,
-				Ts:    probe.Ts,
+func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emptypb.Empty, error) {
+	for _, sample := range req.Samples {
+		if sample.Ts > s.data.GetSampleTs(GetSampleId(sample)) {
+			s.data.SetSample(&data.Sample{
+				From:  sample.From,
+				To:    sample.To,
+				Key:   sample.Key,
+				Value: sample.Value,
+				Ts:    sample.Ts,
 			})
 		}
 	}
-	s.log.Debugw("Safe probes", "count", len(s.data.GetProbeList()))
+	s.log.Debugw("Safe samples", "count", len(s.data.GetSampleList()))
+	return &emptypb.Empty{}, nil
+}
+
+func (s *MeshServer) Rtt(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
 	return &emptypb.Empty{}, nil
 }
 
@@ -75,6 +82,10 @@ func (m *Mesh) StartServer() error {
 		data:              &m.database,
 		name:              &m.config.StartupSettings.Name,
 		newNodeDiscovered: m.newNodeDiscovered,
+	}
+
+	if m.config.StartupSettings.DebugGrpc {
+		grpc_zap.ReplaceGrpcLoggerV2(meshServer.log.Named("grpc").Desugar())
 	}
 
 	listenAdd := m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10)
@@ -88,7 +99,7 @@ func (m *Mesh) StartServer() error {
 	opts := []grpc.ServerOption{}
 
 	// TLS
-	tlsCredentials, err := loadTLSCredentials(
+	tlsCredentials, err := h.LoadServerTLSCredentials(
 		m.config.StartupSettings.ServerCertPath,
 		m.config.StartupSettings.ServerKeyPath,
 		m.config.StartupSettings.ServerCert,
@@ -100,7 +111,7 @@ func (m *Mesh) StartServer() error {
 	}
 
 	if tlsCredentials != nil {
-		opts = append(opts, grpc.Creds(tlsCredentials))
+		opts = append(opts, grpc.Creds(credentials.NewTLS(tlsCredentials)))
 	}
 
 	grpcServer := grpc.NewServer(opts...)
@@ -108,36 +119,4 @@ func (m *Mesh) StartServer() error {
 	reflection.Register(grpcServer)
 	grpcServer.Serve(lis)
 	return nil
-}
-
-func loadTLSCredentials(serverCert_path string, serverKey_path string, serverCert_b64 []byte, serverKey_b64 []byte) (credentials.TransportCredentials, error) {
-	// Load server certificate and key
-	var serverCert tls.Certificate
-	var err error
-
-	if serverCert_path != "" && serverKey_path != "" {
-		serverCert, err = tls.LoadX509KeyPair(serverCert_path, serverKey_path)
-	} else if serverCert_b64 != nil && serverKey_b64 != nil {
-		var cert []byte
-		var key []byte
-		_, err = base64.StdEncoding.Decode(cert, serverCert_b64)
-		if err != nil {
-			return nil, err
-		}
-		_, err = base64.StdEncoding.Decode(key, serverCert_b64)
-		serverCert, err = tls.X509KeyPair(cert, key)
-	} else {
-		return nil, errors.New("Neither server cert and key path nor base64 encoded cert and key set")
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	config := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.NoClientCert,
-	}
-
-	return credentials.NewTLS(config), nil
 }
