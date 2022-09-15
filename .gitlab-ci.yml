@@ -39,4 +39,4 @@ kaniko_build:
                      --build-arg DOCKER_BUILD_ENVIRONMENT=${DOCKER_BUILD_ENVIRONMENT}
                      --dockerfile ${DOCKERFILE_LOCATION}"
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
-coverage: '/coverage: \d+.\d+% of statements/'
+  coverage: '/coverage: \d+.\d+% of statements/'
