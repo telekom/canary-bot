@@ -1,0 +1,42 @@
+variables:
+  NO_PROXY: "$NO_PROXY,*.telekom.de"
+  IMAGE_NAME: canary-bot
+
+stages:
+  - test
+  - build
+  - container_scan
+
+include:
+  - project: caas/cicd_templates
+    file: code_security_scan.yml
+  - project: caas/microservice_cicd
+    file: container_scan.yml
+
+kaniko_build:
+  stage: build
+  tags:
+    - otc_run_docker_k8s
+  variables:
+    IMAGE_REPOSITORY: $DOCKER_REGISTRY/caas/$IMAGE_NAME
+  image:
+    name: artifactory.devops.telekom.de/gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - export DOCKERFILE_LOCATION=$(find . -name Dockerfile -print -quit)
+    - export PRIVATE_GO_SERVER=$(echo ${CI_SERVER_URL} | sed 's/https:\/\///g')
+    - |
+      KANIKO_PARAMS="--registry-mirror dockerhub.devops.telekom.de
+                     --context ${CI_PROJECT_DIR}
+                     --destination ${IMAGE_REPOSITORY}:latest
+                     --destination ${IMAGE_REPOSITORY}:${CI_PIPELINE_ID}
+                     --build-arg http_proxy=${http_proxy}
+                     --build-arg https_proxy=${https_proxy}
+                     --build-arg no_proxy=${no_proxy}
+                     --build-arg CI_USER=gitlab-ci-token
+                     --build-arg CI_JOB_TOKEN=${CI_JOB_TOKEN}
+                     --build-arg PRIVATE_GO_SERVER=${PRIVATE_GO_SERVER}
+                     --build-arg DOCKER_BUILD_ENVIRONMENT=${DOCKER_BUILD_ENVIRONMENT}
+                     --dockerfile ${DOCKERFILE_LOCATION}"
+      echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
+coverage: '/coverage: \d+.\d+% of statements/'
