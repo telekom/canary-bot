@@ -31,17 +31,28 @@ const (
 
 var cmd = &cobra.Command{
 	Use:   "cbot",
-	Short: "Canary Bot collecting & distributing data in a mesh",
-	Long: `Initialize multiple Canary Bots to create a Canary Mesh.
+	Short: "Canary Bot collecting & distributing sample data in a mesh",
+	Long: `Canary Bot collecting & distributing sample data in a mesh.
+	
+Initialize multiple Canary Bots to create a Canary Mesh.
 All bots will gather data and spread it in the mesh.
 
 Features:
+ - auto re-join
  - http based communication (gRPC)
  - partly based on the gossip protocol standard
- - mutal TLS enabled
+ - mutal TLS, edge-terminating TLS, no TLS
 
-All flags can be set by environment variables. Please use the Prefix ` + envPrefix + `
+All flags can be set by environment variables. Please use the Prefix ` + envPrefix + `.
 Multiple targets can be set comma-separated.
+
+Example 1
+- eade-terminating TLS - 2 targets - different join & listen address for Kubernetes szenario -
+cbot --name owl --join-address bird-owl.com:443 --listen-adress localhost --listen-port 8080 --api-port 8081 -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer
+
+Example 2
+- mutal TLS - 2 targets - join & listen-address is external IP from network interface
+cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn 
 `,
 	PersistentPreRun: initSettings,
 	Run:              run,
@@ -119,18 +130,18 @@ func run(cmd *cobra.Command, args []string) {
 		PingInterval:          time.Second * 10,
 		PingRetryAmount:       3,
 		PingRetryDelay:        time.Second * 5,
-		TimeoutRetryPause:     time.Second * 5,
+		TimeoutRetryPause:     time.Minute,
 		TimeoutRetryAmount:    3,
-		TimeoutRetryDelay:     time.Second * 5,
+		TimeoutRetryDelay:     time.Second * 30,
 		BroadcastToAmount:     2,
 		PushSampleInterval:    time.Second * 5,
-		PushSampleToAmount:    1,
+		PushSampleToAmount:    2,
 		PushSampleRetryAmount: 2,
-		PushSampleRetryDelay:  time.Second * 1,
-		CleanSampleInterval:   time.Second * 5,
-		SampleMaxAge:          time.Minute, //time.Hour * 24,
+		PushSampleRetryDelay:  time.Second * 10,
+		CleanSampleInterval:   time.Minute,
+		SampleMaxAge:          time.Hour * 24,
 
-		RttInterval: time.Second * 5,
+		RttInterval: time.Second * 3,
 
 		StartupSettings: set,
 	}, logger)
@@ -215,7 +226,6 @@ func init() {
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")
 	cmd.Flags().BoolVar(&set.DebugGrpc, "debug-grpc", defaults.DebugGrpc, "Enable more logging for grpc")
-
 }
 
 func initSettings(cmd *cobra.Command, args []string) {
