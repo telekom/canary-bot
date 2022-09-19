@@ -13,6 +13,8 @@ import (
 	h "canary-bot/helper"
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -88,6 +90,14 @@ func run(cmd *cobra.Command, args []string) {
 	// validate if target(s) is/are set
 	if len(set.Targets) == 0 {
 		logger.Fatal("No target(s) set, please set to join a (future) mesh")
+	}
+
+	// enable pprof for profiling
+	if set.DebugProfile {
+		go func() {
+			logger.Info("Starting go debugging profiler pprof on port 6060")
+			logger.Debug(http.ListenAndServe("localhost:6060", nil))
+		}()
 	}
 
 	// get IP of this node if no bind-address and/or domain set
@@ -226,6 +236,7 @@ func init() {
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")
 	cmd.Flags().BoolVar(&set.DebugGrpc, "debug-grpc", defaults.DebugGrpc, "Enable more logging for grpc")
+	cmd.Flags().BoolVar(&set.DebugProfile, "debug-pprof", defaults.DebugProfile, "Enable profile debugging on port 6060")
 }
 
 func initSettings(cmd *cobra.Command, args []string) {
