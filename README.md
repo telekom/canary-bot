@@ -1,3 +1,7 @@
+# Mesh
+
+![the mesh](mesh.drawio.png)
+
 # Usage
 
 Run `cbot --help` for futher information.
@@ -14,18 +18,22 @@ Listen server address & port - the real listening settings of the grpc server:
 
 ### 1. Szenario: Kubernetes cluster
 
-The kubernetes ingress controller will listen on my-ingress-domain.com on port 443 (https). It redirects incomming http request via a service to the running pod listening on its internal ip on port 8080.
+[eade-terminating TLS - 2 targets - different join & listen address for Kubernetes szenario]
+
+The kubernetes ingress controller will listen on bird-owl.com on port 443 (https). It redirects incomming http request via a service to the running pod listening to localhost on port 8080.
 
 ```
-... --join-address my-ingress-domain.com:443 --listen-port 8080 ...
+cbot --name owl --join-address bird-owl.com:443 --listen-adress localhost --listen-port 8080 --api-port 8081 -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer
 ```
 
 ### 2. Szenario: Dedicated host
 
+[mutal TLS - 2 targets - join & listen-address is external IP from network interface]
+
 The bot is running on a public ip (x.x.x.x) and listens on port 8081 for mesh requests.
 
 ```
-... --listen-port 8081 ...
+cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn 
 ```
 
 ## TLS
