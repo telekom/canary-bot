@@ -4,7 +4,7 @@ package mesh.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "canary-bot/proto/gen/mesh/v1;meshv1";
+option go_package = "gitlab.devops.telekom.de/caas/canary-bot/proto/gen/mesh/v1;meshv1";
 
 service MeshService {
     rpc JoinMesh(Node) returns (JoinMeshResponse) {}

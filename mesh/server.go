@@ -5,9 +5,9 @@ import (
 	"net"
 	"strconv"
 
-	"canary-bot/data"
-	h "canary-bot/helper"
-	meshv1 "canary-bot/proto/mesh/v1"
+	"gitlab.devops.telekom.de/caas/canary-bot/data"
+	h "gitlab.devops.telekom.de/caas/canary-bot/helper"
+	meshv1 "gitlab.devops.telekom.de/caas/canary-bot/proto/mesh/v1"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

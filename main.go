@@ -5,12 +5,12 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package main
 
 import (
-	"canary-bot/api"
-	"canary-bot/data"
-	mesh "canary-bot/mesh"
 	"strconv"
 
-	h "canary-bot/helper"
+	"gitlab.devops.telekom.de/caas/canary-bot/api"
+	"gitlab.devops.telekom.de/caas/canary-bot/data"
+	mesh "gitlab.devops.telekom.de/caas/canary-bot/mesh"
+
 	"fmt"
 	"log"
 	"net/http"
@@ -20,6 +20,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	h "gitlab.devops.telekom.de/caas/canary-bot/helper"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

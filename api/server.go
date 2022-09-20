@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"time"
 
-	"canary-bot/data"
-	h "canary-bot/helper"
-	"canary-bot/mesh"
+	"gitlab.devops.telekom.de/caas/canary-bot/data"
+	h "gitlab.devops.telekom.de/caas/canary-bot/helper"
+	"gitlab.devops.telekom.de/caas/canary-bot/mesh"
 
-	third_party "canary-bot/proto/api/third_party"
-	apiv1 "canary-bot/proto/api/v1"
-	apiv1connect "canary-bot/proto/api/v1/apiv1connect"
+	third_party "gitlab.devops.telekom.de/caas/canary-bot/proto/api/third_party"
+	apiv1 "gitlab.devops.telekom.de/caas/canary-bot/proto/api/v1"
+	apiv1connect "gitlab.devops.telekom.de/caas/canary-bot/proto/api/v1/apiv1connect"
 
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 

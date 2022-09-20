@@ -1,4 +1,4 @@
-module canary-bot
+module gitlab.devops.telekom.de/caas/canary-bot
 
 go 1.18
 

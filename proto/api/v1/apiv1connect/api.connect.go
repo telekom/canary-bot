@@ -5,10 +5,10 @@
 package apiv1connect
 
 import (
-	v1 "canary-bot/proto/api/v1"
 	context "context"
 	errors "errors"
 	connect_go "github.com/bufbuild/connect-go"
+	v1 "gitlab.devops.telekom.de/caas/canary-bot/proto/api/v1"
 	http "net/http"
 	strings "strings"
 )

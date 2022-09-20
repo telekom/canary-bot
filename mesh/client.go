@@ -1,13 +1,14 @@
 package mesh
 
 import (
-	"canary-bot/data"
-	h "canary-bot/helper"
-	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
 	"math/rand"
 	"strconv"
 	"time"
+
+	"gitlab.devops.telekom.de/caas/canary-bot/data"
+	h "gitlab.devops.telekom.de/caas/canary-bot/helper"
+	meshv1 "gitlab.devops.telekom.de/caas/canary-bot/proto/mesh/v1"
 
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"google.golang.org/grpc"

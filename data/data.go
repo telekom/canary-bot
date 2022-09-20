@@ -1,10 +1,11 @@
 package data
 
 import (
-	h "canary-bot/helper"
-	meshv1 "canary-bot/proto/mesh/v1"
 	"strconv"
 	"time"
+
+	h "gitlab.devops.telekom.de/caas/canary-bot/helper"
+	meshv1 "gitlab.devops.telekom.de/caas/canary-bot/proto/mesh/v1"
 
 	"github.com/hashicorp/go-memdb"
 	"go.uber.org/zap"
