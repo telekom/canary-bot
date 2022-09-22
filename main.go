@@ -9,6 +9,7 @@ import (
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 
 	h "canary-bot/helper"
