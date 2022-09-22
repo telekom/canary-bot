@@ -92,6 +92,14 @@ func run(cmd *cobra.Command, args []string) {
 		logger.Fatal("No target(s) set, please set to join a (future) mesh")
 	}
 
+	// enable pprof for profiling
+	if set.DebugProfile {
+		go func() {
+			logger.Info("Starting go debugging profiler pprof on port 6060")
+			logger.Debug(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
+
 	// get IP of this node if no bind-address and/or domain set
 	externalIP, err := h.ExternalIP()
 	if set.ListenAddress == "" {
@@ -109,14 +117,6 @@ func run(cmd *cobra.Command, args []string) {
 		} else {
 			set.JoinAddress = externalIP + strconv.FormatInt(set.ListenPort, 10)
 		}
-	}
-
-	// enable pprof for profiling
-	if set.DebugProfile {
-		go func() {
-			logger.Info("Starting go debugging profiler pprof on port 6060")
-			logger.Debug(http.ListenAndServe(set.ListenAddress+":6060", nil))
-		}()
 	}
 
 	// get tokens; generate one if none is set
