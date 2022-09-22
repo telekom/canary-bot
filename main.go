@@ -8,6 +8,7 @@ import (
 	"canary-bot/api"
 	"canary-bot/data"
 	mesh "canary-bot/mesh"
+	"net/http"
 	"strconv"
 
 	h "canary-bot/helper"
@@ -69,6 +70,11 @@ func run(cmd *cobra.Command, args []string) {
 	var err error
 	if set.Debug {
 		zapLogger, err = zap.NewDevelopment()
+		go func() {
+			zapLogger.Info("Starting go debugging profiler pprof on port 6060")
+			http.ListenAndServe(set.ListenAddress+":6060", nil)
+		}()
+
 	} else {
 		zapLogger, err = zap.NewProduction()
 	}

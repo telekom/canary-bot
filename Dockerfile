@@ -7,6 +7,7 @@ WORKDIR /app
 RUN go mod download
 
 RUN ls -lisa
+RUN go test -cover ./...
 RUN go build -o ./app/app-build .
 RUN cd ./app && ls -lisa
 

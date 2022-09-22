@@ -130,6 +130,8 @@ func NewMemDB(logger *zap.SugaredLogger) (Database, error) {
 func (db *Database) SetNode(node *DbNode) {
 	// Create a write transaction
 	txn := db.Txn(true)
+	defer txn.Abort()
+
 	err := txn.Insert("node", node)
 	if err != nil {
 		panic(err)
@@ -141,10 +143,10 @@ func (db *Database) SetNode(node *DbNode) {
 
 func (db *Database) SetNodeTsNow(id uint32) {
 	txn := db.Txn(true)
+	defer txn.Abort()
 
 	node := db.GetNode(id)
 	if node.Id == 0 {
-		txn.Abort()
 		return
 	}
 
@@ -161,6 +163,8 @@ func (db *Database) SetNodeTsNow(id uint32) {
 func (db *Database) SetSample(sample *Sample) {
 	// Create a write transaction
 	txn := db.Txn(true)
+	defer txn.Abort()
+
 	sample.Id = GetSampleId(sample)
 	err := txn.Insert("sample", sample)
 	if err != nil {
@@ -173,6 +177,8 @@ func (db *Database) SetSample(sample *Sample) {
 
 func (db *Database) GetSample(id uint32) *Sample {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	raw, err := txn.First("sample", "id", id)
 	if err != nil {
 		panic(err)
@@ -185,6 +191,8 @@ func (db *Database) GetSample(id uint32) *Sample {
 
 func (db *Database) DeleteSample(id uint32) {
 	txn := db.Txn(true)
+	defer txn.Abort()
+
 	err := txn.Delete("sample", db.GetSample(id))
 	if err != nil {
 		db.log.Debugf("Could not delete sample")
@@ -195,6 +203,8 @@ func (db *Database) DeleteSample(id uint32) {
 
 func (db *Database) GetSampleTs(id uint32) int64 {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	raw, err := txn.First("sample", "id", id)
 	if err != nil {
 		panic(err)
@@ -207,6 +217,8 @@ func (db *Database) GetSampleTs(id uint32) int64 {
 
 func (db *Database) GetSampleList() []*Sample {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	it, err := txn.Get("sample", "id")
 	if err != nil {
 		panic(err)
@@ -220,6 +232,8 @@ func (db *Database) GetSampleList() []*Sample {
 
 func (db *Database) DeleteNode(id uint32) {
 	txn := db.Txn(true)
+	defer txn.Abort()
+
 	err := txn.Delete("node", db.GetNode(id))
 	if err != nil {
 		db.log.Debugf("Could not delete Node")
@@ -230,6 +244,8 @@ func (db *Database) DeleteNode(id uint32) {
 
 func (db *Database) GetNode(id uint32) *DbNode {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	raw, err := txn.First("node", "id", id)
 	if err != nil {
 		panic(err)
@@ -242,6 +258,8 @@ func (db *Database) GetNode(id uint32) *DbNode {
 
 func (db *Database) GetNodeByName(name string) *DbNode {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	raw, err := txn.First("node", "name", name)
 	if err != nil {
 		panic(err)
@@ -254,6 +272,8 @@ func (db *Database) GetNodeByName(name string) *DbNode {
 
 func (db *Database) GetNodeList() []*DbNode {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	it, err := txn.Get("node", "id")
 	if err != nil {
 		panic(err)
@@ -267,6 +287,8 @@ func (db *Database) GetNodeList() []*DbNode {
 
 func (db *Database) GetNodeListByState(byState int) []*DbNode {
 	txn := db.Txn(false)
+	defer txn.Abort()
+
 	it, err := txn.Get("node", "id")
 	if err != nil {
 		panic(err)
