@@ -13,8 +13,6 @@ import (
 
 	"fmt"
 	"log"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -238,7 +236,6 @@ func init() {
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")
 	cmd.Flags().BoolVar(&set.DebugGrpc, "debug-grpc", defaults.DebugGrpc, "Enable more logging for grpc")
-	cmd.Flags().BoolVar(&set.DebugProfile, "debug-pprof", defaults.DebugProfile, "Enable profile debugging on port 6060")
 }
 
 func initSettings(cmd *cobra.Command, args []string) {

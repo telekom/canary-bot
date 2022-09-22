@@ -95,9 +95,8 @@ type Settings struct {
 	Tokens []string
 
 	//Logging
-	Debug        bool
-	DebugGrpc    bool
-	DebugProfile bool
+	Debug     bool
+	DebugGrpc bool
 }
 
 type NodeDiscovered struct {
