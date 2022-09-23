@@ -145,13 +145,13 @@ func (db *Database) SetNodeTsNow(id uint32) {
 	txn := db.Txn(true)
 	defer txn.Abort()
 
-	node := db.GetNode(id)
+	node := *db.GetNode(id)
 	if node.Id == 0 {
 		return
 	}
 
 	node.LastSampleTs = time.Now().Unix()
-	err := txn.Insert("node", node)
+	err := txn.Insert("node", &node)
 	if err != nil {
 		panic(err)
 	}
