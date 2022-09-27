@@ -14,10 +14,6 @@ service MeshService {
     rpc Rtt(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
-message IAm {
-    Node i_am_node = 1;
-}
-
 message JoinMeshResponse {
     bool name_unique = 1;
     string my_name = 2;

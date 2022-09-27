@@ -30,7 +30,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 		log.Debugf("Index %+v Targets: %+v", index, targets)
 		node := &meshv1.Node{Name: "", Target: target}
 
-		err := m.initClient(node, false, false, false)
+		err := m.initClient(node)
 		if err != nil {
 			m.log.Debug("Could not connect to client, joinMesh request failed")
 			if index != len(targets)-1 {
@@ -83,7 +83,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 
 func (m *Mesh) Ping(node *meshv1.Node) error {
 	log := m.log.Named("ping-routine")
-	err := m.initClient(node, false, false, false)
+	err := m.initClient(node)
 	if err != nil {
 		log.Debugw("Could not connect to client")
 		return err
@@ -104,7 +104,7 @@ func (m *Mesh) Ping(node *meshv1.Node) error {
 
 func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 	log := m.log.Named("discovery-routine")
-	err := m.initClient(toNode, false, false, false)
+	err := m.initClient(toNode)
 	if err != nil {
 		log.Warnw("Could not connect to client - skip Node Discover Request", "node", toNode.Name)
 		return
@@ -125,7 +125,7 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 
 func (m *Mesh) PushSamples(node *meshv1.Node) error {
 	log := m.log.Named("sample-routine")
-	err := m.initClient(node, false, false, false)
+	err := m.initClient(node)
 	if err != nil {
 		log.Debugw("Could not connect to client")
 		return err
@@ -149,7 +149,7 @@ func (m *Mesh) PushSamples(node *meshv1.Node) error {
 	return nil
 }
 
-func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconnect bool) error {
+func (m *Mesh) initClient(to *meshv1.Node) error {
 	nodeId := GetId(to)
 	log := m.log.Named("client")
 	log.Debugw("Init client")
@@ -170,16 +170,6 @@ func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconn
 			opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
 		}
 
-		// blocking
-		if blocking {
-			opts = append(opts, grpc.WithBlock())
-		}
-
-		// wait for connection
-		if wait {
-			opts = append(opts, grpc.WithDefaultCallOptions(grpc.WaitForReady(true)))
-		}
-
 		// dial
 		conn, err := grpc.Dial(to.Target, opts...)
 		if err != nil {
@@ -189,7 +179,7 @@ func (m *Mesh) initClient(to *meshv1.Node, blocking bool, wait bool, forceReconn
 
 		client := meshv1.NewMeshServiceClient(conn)
 
-		m.mu.Lock()
+		m.mu.Lock() //TODO has to be moved to the top?
 		m.clients[nodeId] = &MeshClient{
 			client: client,
 			conn:   conn,

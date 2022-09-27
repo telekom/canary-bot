@@ -64,8 +64,6 @@ var defaults mesh.Settings
 var set mesh.Settings
 
 func run(cmd *cobra.Command, args []string) {
-	// environment variables prefix
-	set.EnvPrefix = envPrefix
 	// prepare logging
 	var zapLogger *zap.Logger
 	var err error
@@ -187,6 +185,10 @@ func main() {
 	}
 }
 
+// The init function is the very first function that ist running,
+// even before the main is executed.\n
+// The default mesh settings will me set.
+// All cmd flags will be defined.
 func init() {
 	defaults = mesh.Settings{
 		Targets:        []string{},
@@ -235,6 +237,9 @@ func init() {
 	cmd.Flags().BoolVar(&set.DebugGrpc, "debug-grpc", defaults.DebugGrpc, "Enable more logging for grpc")
 }
 
+// Before the run function gets executed
+// all env variables need to be loaded (bindEnvToFlags).
+// Viper gets initialised.
 func initSettings(cmd *cobra.Command, args []string) {
 	v := viper.New()
 	// Set environment variable prefix
@@ -245,6 +250,9 @@ func initSettings(cmd *cobra.Command, args []string) {
 	bindEnvToFlags(cmd, v)
 }
 
+// Environment variables will be bind to cmd flags,
+// if the flag is not set.
+// Env vars have a defined prefix.
 func bindEnvToFlags(cmd *cobra.Command, v *viper.Viper) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		// Mapping Flag with "-" to uppercase env with "_" --listen-port to <PREFIX>_LISTEN_PORT

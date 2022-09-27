@@ -68,7 +68,6 @@ type Config struct {
 }
 
 type Settings struct {
-	EnvPrefix string
 	// remote target
 	Targets []string
 
@@ -148,8 +147,6 @@ func (m *Mesh) timerRoutines() {
 	// Timer to clean sampels from removed nodes
 	m.cleanSampleTicker = time.NewTicker(m.config.CleanSampleInterval)
 	m.cleanSampleTicker.Stop()
-	// Not used
-	quit := make(chan bool)
 
 	// Sample: RTT
 	m.rttTicker = time.NewTicker(m.config.RttInterval)
@@ -217,12 +214,6 @@ func (m *Mesh) timerRoutines() {
 
 		case <-m.rttTicker.C:
 			go m.Rtt()
-
-		case <-quit:
-			// Not used
-			m.pingTicker.Stop()
-			m.pushSampleTicker.Stop()
-			return
 
 		case <-m.restartJoinRoutine:
 			joinTicker.Reset(m.config.JoinInterval)
@@ -304,6 +295,8 @@ func (m *Mesh) channelRoutines() {
 }
 
 func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration, timedOut bool) {
+	// TODO refactor retries & delay -> directly from class
+	// TODO DB Get node, anstelle timeout bool
 	log := m.log.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
