@@ -1,4 +1,5 @@
 MESH
+TODO waiting state for a node before timeout etc
 TODO ping zu nodes nach timeout ping routine
 TODO name check -> same name as node in mesh but not known by node where i want to join
 TODO evaluate using grpc/http retry handler

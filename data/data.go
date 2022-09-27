@@ -4,36 +4,54 @@ import (
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"strconv"
-	"time"
 
 	"github.com/hashicorp/go-memdb"
 	"go.uber.org/zap"
 )
 
+// Sample keys
 const (
 	STATE       = 1
 	RTT_TOTAL   = 2
 	RTT_REQUEST = 3
 )
 
+// Sample keys map for mapping back to string
 var SampleName = map[int64]string{
 	STATE:       "state",
 	RTT_TOTAL:   "rtt_total",
 	RTT_REQUEST: "rtt_request",
 }
 
+// Database that is used by the mesh.
+// It will hold node and sample data.
+// It is a in-memory database. A logger
+// is provided.
 type Database struct {
 	*memdb.MemDB
 	log *zap.SugaredLogger
 }
 
-type DbNode struct {
+// A database node will have an Id
+// witch is a unique integer.
+// The name is unique in the node db
+// schema. The target defines the address:port
+// of the node. The state is the status of
+// the node. LastSampleTs will be updated if
+// a new sample gets measured. Is used by
+// the clean up routine.
+type Node struct {
 	Id           uint32
 	Name         string
 	Target       string
 	State        int
 	LastSampleTs int64
 }
+
+// A sample represents a measurement
+// sample from a node to another node (e.g. round-trip-time).
+// The key is the sample name and the value
+// the measurement.
 type Sample struct {
 	Id    uint32
 	From  string
@@ -43,9 +61,13 @@ type Sample struct {
 	Ts    int64
 }
 
+// Will create a in-memory database and
+// a looger. The database will be created with
+// 2 schemas: node, sample
 func NewMemDB(logger *zap.SugaredLogger) (Database, error) {
 	defer logger.Sync()
 
+	// 2 tables: node, sample
 	schema := &memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"node": {
@@ -127,190 +149,18 @@ func NewMemDB(logger *zap.SugaredLogger) (Database, error) {
 	return Database{db, logger}, err
 }
 
-func (db *Database) SetNode(node *DbNode) {
-	// Create a write transaction
-	txn := db.Txn(true)
-	defer txn.Abort()
-
-	err := txn.Insert("node", node)
-	if err != nil {
-		panic(err)
-	}
-
-	// Commit the transaction
-	txn.Commit()
-}
-
-func (db *Database) SetNodeTsNow(id uint32) {
-	txn := db.Txn(true)
-	defer txn.Abort()
-
-	node := *db.GetNode(id)
-	if node.Id == 0 {
-		return
-	}
-
-	node.LastSampleTs = time.Now().Unix()
-	err := txn.Insert("node", &node)
-	if err != nil {
-		panic(err)
-	}
-
-	// Commit the transaction
-	txn.Commit()
-}
-
-func (db *Database) SetSample(sample *Sample) {
-	// Create a write transaction
-	txn := db.Txn(true)
-	defer txn.Abort()
-
-	sample.Id = GetSampleId(sample)
-	err := txn.Insert("sample", sample)
-	if err != nil {
-		panic(err)
-	}
-
-	// Commit the transaction
-	txn.Commit()
-}
-
-func (db *Database) GetSample(id uint32) *Sample {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	raw, err := txn.First("sample", "id", id)
-	if err != nil {
-		panic(err)
-	}
-	if raw == nil {
-		return &Sample{}
-	}
-	return raw.(*Sample)
-}
-
-func (db *Database) DeleteSample(id uint32) {
-	txn := db.Txn(true)
-	defer txn.Abort()
-
-	err := txn.Delete("sample", db.GetSample(id))
-	if err != nil {
-		db.log.Debugf("Could not delete sample")
-	}
-	// Commit the transaction
-	txn.Commit()
-}
-
-func (db *Database) GetSampleTs(id uint32) int64 {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	raw, err := txn.First("sample", "id", id)
-	if err != nil {
-		panic(err)
-	}
-	if raw == nil {
-		return 0
-	}
-	return raw.(*Sample).Ts
-}
-
-func (db *Database) GetSampleList() []*Sample {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	it, err := txn.Get("sample", "id")
-	if err != nil {
-		panic(err)
-	}
-	var samples []*Sample
-	for obj := it.Next(); obj != nil; obj = it.Next() {
-		samples = append(samples, obj.(*Sample))
-	}
-	return samples
-}
-
-func (db *Database) DeleteNode(id uint32) {
-	txn := db.Txn(true)
-	defer txn.Abort()
-
-	err := txn.Delete("node", db.GetNode(id))
-	if err != nil {
-		db.log.Debugf("Could not delete Node")
-	}
-	// Commit the transaction
-	txn.Commit()
-}
-
-func (db *Database) GetNode(id uint32) *DbNode {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	raw, err := txn.First("node", "id", id)
-	if err != nil {
-		panic(err)
-	}
-	if raw == nil {
-		return &DbNode{}
-	}
-	return raw.(*DbNode)
-}
-
-func (db *Database) GetNodeByName(name string) *DbNode {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	raw, err := txn.First("node", "name", name)
-	if err != nil {
-		panic(err)
-	}
-	if raw == nil {
-		return &DbNode{}
-	}
-	return raw.(*DbNode)
-}
-
-func (db *Database) GetNodeList() []*DbNode {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	it, err := txn.Get("node", "id")
-	if err != nil {
-		panic(err)
-	}
-	var nodes []*DbNode
-	for obj := it.Next(); obj != nil; obj = it.Next() {
-		nodes = append(nodes, obj.(*DbNode))
-	}
-	return nodes
-}
-
-func (db *Database) GetNodeListByState(byState int) []*DbNode {
-	txn := db.Txn(false)
-	defer txn.Abort()
-
-	it, err := txn.Get("node", "id")
-	if err != nil {
-		panic(err)
-	}
-	var nodes []*DbNode
-	for obj := it.Next(); obj != nil; obj = it.Next() {
-		if obj.(*DbNode).State == byState {
-			nodes = append(nodes, obj.(*DbNode))
-		}
-	}
-	return nodes
-}
-
-func (n *DbNode) Convert() *meshv1.Node {
+// Convert a given database node to a mesh node
+func (n *Node) Convert() *meshv1.Node {
 	return &meshv1.Node{
 		Name:   n.Name,
 		Target: n.Target,
 	}
 }
 
-func Convert(n *meshv1.Node, state int) *DbNode {
-	return &DbNode{
+// Convert a given mesh node to a database node
+// with a given state of the node
+func Convert(n *meshv1.Node, state int) *Node {
+	return &Node{
 		Id:           h.Hash(n.Target),
 		Name:         n.Name,
 		Target:       n.Target,
@@ -319,10 +169,14 @@ func Convert(n *meshv1.Node, state int) *DbNode {
 	}
 }
 
-func GetId(n *DbNode) uint32 {
+// Get the id of a database node.
+// The id is a hash integer
+func GetId(n *Node) uint32 {
 	return h.Hash(n.Target)
 }
 
+// Get the id of a given sample.
+// The id is a hash integer
 func GetSampleId(p *Sample) uint32 {
 	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
 }
