@@ -45,7 +45,7 @@ test-report:
   stage: build
   image: dockerhub.devops.telekom.de/golang:1.18
   script:
-    - go get gotest.tools/gotestsum
+    - go install gotest.tools/gotestsum
     - gotestsum --junitfile report.xml --format testname
   artifacts:
     when: always
