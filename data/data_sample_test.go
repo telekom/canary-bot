@@ -79,15 +79,15 @@ func Test_GetSample(t *testing.T) {
 }
 func Test_DeleteSample(t *testing.T) {
 	db, _ := NewMemDB(log)
-	for _, node := range nodes {
-		db.SetNode(node)
+	for _, sample := range samples {
+		db.SetSample(sample)
 	}
-	for _, node := range nodes {
-		db.DeleteNode(node.Id)
+	for _, sample := range samples {
+		db.DeleteSample(sample.Id)
 	}
-	nodes_result := db.GetNodeList()
-	if len(nodes_result) > 0 {
-		t.Errorf("still some nodes in db, should be empty. Amount of nodes that are left in result: %v", len(nodes_result))
+	samples_result := db.GetSampleList()
+	if len(samples_result) > 0 {
+		t.Errorf("still some samples in db, should be empty. Amount of nodes that are left in result: %v", len(samples_result))
 	}
 }
 
