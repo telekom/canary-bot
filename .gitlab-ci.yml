@@ -39,16 +39,17 @@ kaniko_build:
                      --build-arg DOCKER_BUILD_ENVIRONMENT=${DOCKER_BUILD_ENVIRONMENT}
                      --dockerfile ${DOCKERFILE_LOCATION}"
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
-  coverage: '/total-coverage: \d+.\d+% of statements/'
 
-test-report:
-  stage: build
+go-test:
+  stage: test
   image: dockerhub.devops.telekom.de/golang:1.18
   script:
     - go get gotest.tools/gotestsum
     - go install gotest.tools/gotestsum
-    - gotestsum --junitfile report.xml --format testname
+    - gotestsum --junitfile report.xml --format standard-verbose -- -coverprofile=cover.out -coverpkg=./... ./...
+    - go tool cover -func cover.out | grep total | awk '{print "total-coverage "$3" of statements"}'
   artifacts:
     when: always
     reports:
       junit: report.xml
+  coverage: '/total-coverage \d+.\d+% of statements/'

@@ -7,8 +7,6 @@ WORKDIR /app
 RUN go mod download
 
 RUN ls -lisa
-RUN CGO_ENABLED=0 go test -coverprofile cover.out -coverpkg=./... ./...
-RUN go tool cover -func cover.out | grep total | awk '{print "total-coverage: "$3" of statements"}'
 RUN go build -o ./app/app-build .
 RUN cd ./app && ls -lisa
 
