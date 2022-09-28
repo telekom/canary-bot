@@ -40,3 +40,13 @@ kaniko_build:
                      --dockerfile ${DOCKERFILE_LOCATION}"
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
   coverage: '/total-coverage: \d+.\d+% of statements/'
+
+test-report:
+  stage: build
+  script:
+    - go get gotest.tools/gotestsum
+    - gotestsum --junitfile report.xml --format testname
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
