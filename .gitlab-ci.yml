@@ -43,6 +43,7 @@ kaniko_build:
 
 test-report:
   stage: build
+  image: dockerhub.devops.telekom.de/golang:1.18
   script:
     - go get gotest.tools/gotestsum
     - gotestsum --junitfile report.xml --format testname
