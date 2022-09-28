@@ -170,6 +170,9 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 			opts = append(opts, grpc.WithTransportCredentials(tlsCredentials))
 		}
 
+		// Timeout interceptor
+		opts = append(opts, grpc.WithUnaryInterceptor(m.timeoutInterceptor))
+
 		// dial
 		conn, err := grpc.Dial(to.Target, opts...)
 		if err != nil {
@@ -189,6 +192,22 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 		log.Debugw("Client already existed")
 	}
 	return nil
+}
+
+func (m *Mesh) timeoutInterceptor(
+	ctx context.Context,
+	method string,
+	req interface{},
+	reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption,
+) error {
+	ctx, close := context.WithTimeout(context.Background(), m.config.RequestTimeout)
+	defer close()
+	// Calls the invoker to execute RPC
+	err := invoker(ctx, method, req, reply, cc, opts...)
+	return err
 }
 
 func (m *Mesh) closeClient(to *meshv1.Node) {

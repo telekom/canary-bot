@@ -131,6 +131,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	// prepare mesh
 	_, err = mesh.NewMesh(mData, &mesh.Config{
+		RequestTimeout:        time.Second * 3,
 		JoinInterval:          time.Second * 3,
 		PingInterval:          time.Second * 10,
 		PingRetryAmount:       3,

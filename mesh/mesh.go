@@ -36,6 +36,9 @@ type Mesh struct {
 }
 
 type Config struct {
+	// Timeout for every grpc request
+	RequestTimeout time.Duration
+
 	// Join config
 	JoinInterval time.Duration
 
@@ -164,6 +167,7 @@ func (m *Mesh) timerRoutines() {
 				// TODO generate random node name?
 			}
 			if connected {
+				log.Infow("Connected to a mesh")
 				m.quitJoinRoutine <- true
 			}
 
@@ -232,6 +236,7 @@ func (m *Mesh) timerRoutines() {
 			m.pushSampleTicker.Reset(m.config.PushSampleInterval)
 			m.cleanSampleTicker.Reset(m.config.CleanSampleInterval)
 			m.rttTicker.Reset(m.config.RttInterval)
+			m.log.Info("Starting pings")
 			m.log.Debug("Stop joinRoutine, starting all timer routines")
 		}
 	}
@@ -323,7 +328,7 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 		}
 
 		if !timedOut {
-			log.Infow("Ping failed", "node", node.Name)
+			log.Infow("Ping failed", "node", node.Name, "timeout", m.config.RequestTimeout)
 			m.database.SetNode(data.Convert(node, NODE_RETRY))
 		}
 		log.Debugw("Retrying", "node", m.database.GetNode(GetId(node)).Name, "delay", delay)
