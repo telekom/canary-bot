@@ -5,26 +5,16 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package main
 
 import (
-	"canary-bot/api"
-	"canary-bot/data"
-	mesh "canary-bot/mesh"
-	"net/http"
+	"canary-bot/mesh"
 	_ "net/http/pprof"
-	"strconv"
 
-	h "canary-bot/helper"
 	"fmt"
-	"log"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 const (
@@ -60,123 +50,12 @@ cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path pat
 	Run:              run,
 }
 
-var defaults mesh.Settings
-var set mesh.Settings
+var defaults mesh.SetupConfiguration
+var set mesh.SetupConfiguration
 
+// Will create the
 func run(cmd *cobra.Command, args []string) {
-	// prepare logging
-	var zapLogger *zap.Logger
-	var err error
-	if set.Debug {
-		zapLogger, err = zap.NewDevelopment()
-		go func() {
-			zapLogger.Info("Starting go debugging profiler pprof on port 6060")
-			http.ListenAndServe(set.ListenAddress+":6060", nil)
-		}()
-
-	} else {
-		zapLogger, err = zap.NewProduction()
-	}
-	if err != nil {
-		log.Fatalf("Could not start Logging - error: %+v", err)
-	}
-	defer zapLogger.Sync()
-	logger := zapLogger.Sugar()
-
-	logger.Debugf("CLI settings: %+v", set)
-
-	// validate if node name for this node is set
-	if set.Name == defaults.Name {
-		logger.Fatalln("Please set a name for the creating node. It has to be unique in the mesh.")
-	}
-
-	// validate if target(s) is/are set
-	if len(set.Targets) == 0 {
-		logger.Fatal("No target(s) set, please set to join a (future) mesh")
-	}
-
-	// get IP of this node if no bind-address and/or domain set
-	externalIP, err := h.ExternalIP()
-	if set.ListenAddress == "" {
-		logger.Info("Bind-address flag not set - getting external IP automatically")
-		if err != nil {
-			logger.Fatalln("Could not get external IP, please use bind-address flag")
-		} else {
-			set.ListenAddress = externalIP
-		}
-	}
-	if set.JoinAddress == "" {
-		logger.Info("JoinAddress flag not set - getting external IP automatically")
-		if err != nil {
-			logger.Fatalln("Could not get external IP, please use join-address flag")
-		} else {
-			set.JoinAddress = externalIP + strconv.FormatInt(set.ListenPort, 10)
-		}
-	}
-
-	// get tokens; generate one if none is set
-	if len(set.Tokens) == 0 {
-		newToken := h.GenerateRandomToken(64)
-		set.Tokens = append(set.Tokens, newToken)
-		logger.Infow("No API tokens set - generated new token", "token", newToken)
-		logger.Info("Please use and set new token as environment variable")
-
-	}
-
-	// prepare in-memory database
-	mData, err := data.NewMemDB(logger.Named("database"))
-	if err != nil {
-		logger.Fatalf("Could not create Memory Database (MemDB) - Error: %+v", err)
-	}
-
-	// prepare mesh
-	_, err = mesh.NewMesh(mData, &mesh.Config{
-		RequestTimeout:        time.Second * 3,
-		JoinInterval:          time.Second * 3,
-		PingInterval:          time.Second * 10,
-		PingRetryAmount:       3,
-		PingRetryDelay:        time.Second * 5,
-		TimeoutRetryPause:     time.Minute,
-		TimeoutRetryAmount:    3,
-		TimeoutRetryDelay:     time.Second * 30,
-		BroadcastToAmount:     2,
-		PushSampleInterval:    time.Second * 5,
-		PushSampleToAmount:    2,
-		PushSampleRetryAmount: 2,
-		PushSampleRetryDelay:  time.Second * 10,
-		CleanSampleInterval:   time.Minute,
-		SampleMaxAge:          time.Hour * 24,
-
-		RttInterval: time.Second * 3,
-
-		StartupSettings: set,
-	}, logger)
-
-	if err != nil {
-		logger.Fatalf("Could not create Mesh - Error: %+v", err)
-	}
-
-	// check TLS mode
-	if set.CaCert != nil || len(set.CaCertPath) > 0 {
-		if (set.ServerCert != nil || set.ServerCertPath != "") && (set.ServerKey != nil || set.ServerKeyPath != "") {
-			logger.Info("Mesh is set to mutal TLS mode")
-		} else {
-			logger.Info("Mesh is set to edge-terminated TLS mode")
-		}
-	} else {
-		logger.Info("Mesh is set to unsecure mode - no TLS used")
-	}
-
-	// start API
-	if err = api.NewApi(mData, &set, logger.Named("api")); err != nil {
-		logger.Fatal("Could not start API - Error: %+v", err)
-	}
-
-	incomingSigs := make(chan os.Signal, 1)
-	signal.Notify(incomingSigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, os.Interrupt)
-	select {
-	case <-incomingSigs:
-	}
+	mesh.CreateCanaryMesh(mesh.StandardProductionRoutineConfig(), &set)
 }
 
 func main() {
@@ -191,7 +70,7 @@ func main() {
 // The default mesh settings will me set.
 // All cmd flags will be defined.
 func init() {
-	defaults = mesh.Settings{
+	defaults = mesh.SetupConfiguration{
 		Targets:        []string{},
 		Name:           "",
 		JoinAddress:    "",

@@ -1,11 +1,14 @@
 package mesh
 
 import (
+	"canary-bot/api"
 	"canary-bot/data"
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
+	"log"
 	"math/rand"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -14,9 +17,10 @@ import (
 )
 
 type Mesh struct {
-	database data.Database
-	log      *zap.SugaredLogger
-	config   *Config
+	database      data.Database
+	logger        *zap.SugaredLogger
+	routineConfig *RoutineConfiguration
+	setupConfig   *SetupConfiguration
 
 	mu      sync.Mutex
 	clients map[uint32]*MeshClient
@@ -35,83 +39,35 @@ type Mesh struct {
 	joinRoutineDone    bool
 }
 
-type Config struct {
-	// Timeout for every grpc request
-	RequestTimeout time.Duration
-
-	// Join config
-	JoinInterval time.Duration
-
-	// Ping config
-	PingInterval       time.Duration
-	PingRetryAmount    int
-	PingRetryDelay     time.Duration
-	TimeoutRetryPause  time.Duration
-	TimeoutRetryAmount int
-	TimeoutRetryDelay  time.Duration
-
-	// Node discovery
-	BroadcastToAmount int
-
-	// Push samples
-	PushSampleInterval    time.Duration
-	PushSampleToAmount    int
-	PushSampleRetryAmount int
-	PushSampleRetryDelay  time.Duration
-
-	// Clean samples
-	CleanSampleInterval time.Duration
-	SampleMaxAge        time.Duration
-
-	// Sample: RTT
-	RttInterval time.Duration
-
-	// User settings from flags and env vars
-	StartupSettings Settings
-}
-
-type Settings struct {
-	// remote target
-	Targets []string
-
-	// local config
-	Name          string
-	JoinAddress   string
-	ListenAddress string
-	ListenPort    int64
-
-	// API
-	ApiPort int64
-
-	// TLS server side
-	ServerCertPath string
-	ServerKeyPath  string
-	ServerCert     []byte
-	ServerKey      []byte
-	// TLS client side
-	CaCertPath []string
-	CaCert     []byte
-
-	//Auth API
-	Tokens []string
-
-	//Logging
-	Debug     bool
-	DebugGrpc bool
-}
-
 type NodeDiscovered struct {
 	NewNode *meshv1.Node
 	From    uint32 // TODO change to name
 }
 
-func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, error) {
+func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupConfiguration) {
+	// prepare logging
+	logger := getLogger(setupConfig.Debug, setupConfig.ListenAddress)
 	defer logger.Sync()
 
+	// SetupConfiguration
+	logger.Debugf("CLI settings: %+v", setupConfig)
+
+	// Try to set missing setupConfigurations
+	setupConfig.setDefaults(logger)
+	// Get info from configuration combination
+	setupConfig.checkDefaults(logger)
+
+	// prepare in-memory database
+	database, err := data.NewMemDB(logger.Named("database"))
+	if err != nil {
+		logger.Fatalf("Could not create Memory Database (MemDB) - Error: %+v", err)
+	}
+
 	m := &Mesh{
-		database:           db,
-		log:                logger,
-		config:             conf,
+		database:           database,
+		logger:             logger,
+		routineConfig:      routineConfig,
+		setupConfig:        setupConfig,
 		clients:            map[uint32]*MeshClient{},
 		newNodeDiscovered:  make(chan NodeDiscovered),
 		timeoutNode:        make(chan *meshv1.Node),
@@ -119,49 +75,64 @@ func NewMesh(db data.Database, conf *Config, logger *zap.SugaredLogger) (*Mesh, 
 		restartJoinRoutine: make(chan bool, 1),
 		joinRoutineDone:    false,
 	}
-	m.log.Info("Starting mesh")
+	logger.Info("Starting mesh")
 
 	go func() {
-		m.log.Info("Starting server, listening vor joining nodes")
+		logger.Info("Starting server, listening vor joining nodes")
 		err := m.StartServer()
 		if err != nil {
-			m.log.Debugf("Mesh server error: %+v", err)
-			m.log.Fatal("Could not start Mesh Server")
+			logger.Debugf("Mesh server error: %+v", err)
+			logger.Fatal("Could not start Mesh Server")
 		}
 	}()
 
-	m.log.Infow("Starting mesh routines")
+	logger.Infow("Starting mesh routines")
 	go m.channelRoutines()
 	go m.timerRoutines()
 
-	return m, nil
+	// start API
+	apiConfig := &api.Configuration{
+		Address:        setupConfig.ListenAddress,
+		Port:           setupConfig.ApiPort,
+		Tokens:         setupConfig.Tokens,
+		DebugGrpc:      setupConfig.DebugGrpc,
+		ServerCertPath: setupConfig.ServerCertPath,
+		ServerKeyPath:  setupConfig.ServerKeyPath,
+		ServerCert:     setupConfig.ServerCert,
+		ServerKey:      setupConfig.ServerKey,
+		CaCertPath:     setupConfig.CaCertPath,
+		CaCert:         setupConfig.CaCert,
+	}
+	if err = api.NewApi(database, apiConfig, logger.Named("api")); err != nil {
+		logger.Fatal("Could not start API - Error: %+v", err)
+	}
 }
 
 func (m *Mesh) timerRoutines() {
 
 	// Timer to send ping to node
-	joinTicker := time.NewTicker(m.config.JoinInterval)
+	joinTicker := time.NewTicker(m.routineConfig.JoinInterval)
 	// Timer to send ping to node
-	m.pingTicker = time.NewTicker(m.config.PingInterval)
+	m.pingTicker = time.NewTicker(m.routineConfig.PingInterval)
 	m.pingTicker.Stop()
 	// Timer to send samples to node
-	m.pushSampleTicker = time.NewTicker(m.config.PushSampleInterval)
+	m.pushSampleTicker = time.NewTicker(m.routineConfig.PushSampleInterval)
 	m.pushSampleTicker.Stop()
 	// Timer to clean sampels from removed nodes
-	m.cleanSampleTicker = time.NewTicker(m.config.CleanSampleInterval)
+	m.cleanSampleTicker = time.NewTicker(m.routineConfig.CleanSampleInterval)
 	m.cleanSampleTicker.Stop()
 
 	// Sample: RTT
-	m.rttTicker = time.NewTicker(m.config.RttInterval)
+	m.rttTicker = time.NewTicker(m.routineConfig.RttInterval)
 	m.rttTicker.Stop()
 
 	for {
 		select {
 		case <-joinTicker.C:
-			log := m.log.Named("join-routine")
+			log := m.logger.Named("join-routine")
 			// join (future) mesh
 			log.Infow("Waiting for a node to join a mesh...")
-			connected, isNameUniqueInMesh := m.Join(m.config.StartupSettings.Targets)
+			connected, isNameUniqueInMesh := m.Join(m.setupConfig.Targets)
 			if !isNameUniqueInMesh {
 				log.Fatal("The name is not unique in the mesh, please choose another one.")
 				// TODO generate random node name?
@@ -172,7 +143,7 @@ func (m *Mesh) timerRoutines() {
 			}
 
 		case <-m.pingTicker.C:
-			log := m.log.Named("ping-routine")
+			log := m.logger.Named("ping-routine")
 			log.Debugw("Starting")
 			nodes := m.database.GetNodeListByState(NODE_OK)
 			if nodes == nil {
@@ -180,18 +151,18 @@ func (m *Mesh) timerRoutines() {
 				break
 			}
 
-			go m.RetryPing(context.Background(), nodes[rand.Intn(len(nodes))].Convert(), m.config.PingRetryAmount, m.config.PingRetryDelay, false)
+			go m.retryPing(context.Background(), nodes[rand.Intn(len(nodes))].Convert(), m.routineConfig.PingRetryAmount, m.routineConfig.PingRetryDelay, false)
 
 		case <-m.pushSampleTicker.C:
-			log := m.log.Named("sample-routine")
-			log.Debugw("Starting push sample routine to random nodes", "amount", m.config.PushSampleToAmount)
+			log := m.logger.Named("sample-routine")
+			log.Debugw("Starting push sample routine to random nodes", "amount", m.routineConfig.PushSampleToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 			if nodes == nil {
 				log.Debugw("No Node connected or all nodes in timeout")
 				break
 			}
 
-			for broadcastCount := 0; broadcastCount < m.config.PushSampleToAmount; broadcastCount++ {
+			for broadcastCount := 0; broadcastCount < m.routineConfig.PushSampleToAmount; broadcastCount++ {
 				if len(nodes) <= 0 {
 					log.Debug("Stopping routine prematurely - no more known nodes")
 					break
@@ -200,7 +171,7 @@ func (m *Mesh) timerRoutines() {
 				randomNode := nodes[randomIndex]
 
 				log.Debugw("Pushing samples", "node", randomNode.Name)
-				go m.RetryPushSample(context.Background(), randomNode.Convert(), m.config.PushSampleRetryAmount, m.config.PushSampleRetryDelay)
+				go m.retryPushSample(context.Background(), randomNode.Convert(), m.routineConfig.PushSampleRetryAmount, m.routineConfig.PushSampleRetryDelay)
 
 				// Remove node already started broadcast to from list
 				nodes[randomIndex] = nodes[len(nodes)-1]
@@ -210,8 +181,8 @@ func (m *Mesh) timerRoutines() {
 		case <-m.cleanSampleTicker.C:
 			// check if sample is too old and delete
 			for _, sample := range m.database.GetSampleList() {
-				if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.config.SampleMaxAge)) {
-					m.log.Infow("Delete old sample", "from", sample.From, "to", sample.To, "key", data.SampleName[sample.Key], "maxAge", m.config.SampleMaxAge.String())
+				if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.routineConfig.SampleMaxAge)) {
+					m.logger.Infow("Delete old sample", "from", sample.From, "to", sample.To, "key", data.SampleName[sample.Key], "maxAge", m.routineConfig.SampleMaxAge.String())
 					m.database.DeleteSample(sample.Id)
 				}
 			}
@@ -220,24 +191,24 @@ func (m *Mesh) timerRoutines() {
 			go m.Rtt()
 
 		case <-m.restartJoinRoutine:
-			joinTicker.Reset(m.config.JoinInterval)
+			joinTicker.Reset(m.routineConfig.JoinInterval)
 			m.joinRoutineDone = false
 			// starting ticker after join routine
 			m.pingTicker.Stop()
 			m.pushSampleTicker.Stop()
 			m.cleanSampleTicker.Stop()
 			m.rttTicker.Stop()
-			m.log.Debug("Start joinRoutine again, stopping all timer routines")
+			m.logger.Debug("Start joinRoutine again, stopping all timer routines")
 		case <-m.quitJoinRoutine:
 			joinTicker.Stop()
 			m.joinRoutineDone = true
 			// starting ticker after join routine
-			m.pingTicker.Reset(m.config.PingInterval)
-			m.pushSampleTicker.Reset(m.config.PushSampleInterval)
-			m.cleanSampleTicker.Reset(m.config.CleanSampleInterval)
-			m.rttTicker.Reset(m.config.RttInterval)
-			m.log.Info("Starting pings")
-			m.log.Debug("Stop joinRoutine, starting all timer routines")
+			m.pingTicker.Reset(m.routineConfig.PingInterval)
+			m.pushSampleTicker.Reset(m.routineConfig.PushSampleInterval)
+			m.cleanSampleTicker.Reset(m.routineConfig.CleanSampleInterval)
+			m.rttTicker.Reset(m.routineConfig.RttInterval)
+			m.logger.Info("Starting pings")
+			m.logger.Debug("Stop joinRoutine, starting all timer routines")
 		}
 	}
 }
@@ -246,7 +217,7 @@ func (m *Mesh) channelRoutines() {
 	for {
 		select {
 		case nodeDiscovered := <-m.newNodeDiscovered:
-			log := m.log.Named("discovery-routine")
+			log := m.logger.Named("discovery-routine")
 			// quit joinMesh routine if discovery is received before
 			if !m.joinRoutineDone {
 				m.quitJoinRoutine <- true
@@ -258,7 +229,7 @@ func (m *Mesh) channelRoutines() {
 			}
 			log.Info("Node joined - new node")
 
-			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.config.BroadcastToAmount)
+			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.routineConfig.BroadcastToAmount)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 
 			// Remove node from list that sent the discovery request
@@ -269,7 +240,7 @@ func (m *Mesh) channelRoutines() {
 				}
 			}
 
-			for broadcastCount := 0; broadcastCount < m.config.BroadcastToAmount; broadcastCount++ {
+			for broadcastCount := 0; broadcastCount < m.routineConfig.BroadcastToAmount; broadcastCount++ {
 				if len(nodes) <= 0 {
 					log.Debug("Stopping routine prematurely - no more known nodes")
 					break
@@ -288,21 +259,21 @@ func (m *Mesh) channelRoutines() {
 
 			m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
 		case node := <-m.timeoutNode:
-			log := m.log.Named("ping-routine")
+			log := m.logger.Named("ping-routine")
 			m.database.SetNode(data.Convert(node, NODE_TIMEOUT_RETRY))
-			log.Debugw("Start Timeout Retry Routine", "delay", m.config.TimeoutRetryPause.String())
+			log.Debugw("Start Timeout Retry Routine", "delay", m.routineConfig.TimeoutRetryPause.String())
 			go func() {
-				time.Sleep(m.config.TimeoutRetryPause)
-				m.RetryPing(context.Background(), node, m.config.TimeoutRetryAmount, m.config.TimeoutRetryDelay, true)
+				time.Sleep(m.routineConfig.TimeoutRetryPause)
+				m.retryPing(context.Background(), node, m.routineConfig.TimeoutRetryAmount, m.routineConfig.TimeoutRetryDelay, true)
 			}()
 		}
 	}
 }
 
-func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration, timedOut bool) {
+func (m *Mesh) retryPing(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration, timedOut bool) {
 	// TODO refactor retries & delay -> directly from class
 	// TODO DB Get node, anstelle timeout bool
-	log := m.log.Named("ping-routine")
+	log := m.logger.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
 		err := m.Ping(node)
@@ -328,7 +299,7 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 		}
 
 		if !timedOut {
-			log.Infow("Ping failed", "node", node.Name, "timeout", m.config.RequestTimeout)
+			log.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String())
 			m.database.SetNode(data.Convert(node, NODE_RETRY))
 		}
 		log.Debugw("Retrying", "node", m.database.GetNode(GetId(node)).Name, "delay", delay)
@@ -340,8 +311,8 @@ func (m *Mesh) RetryPing(ctx context.Context, node *meshv1.Node, retries int, de
 	}
 }
 
-func (m *Mesh) RetryPushSample(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration) {
-	log := m.log.Named("sample-routine")
+func (m *Mesh) retryPushSample(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration) {
+	log := m.logger.Named("sample-routine")
 	log.Debugw("Push sample retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
 		err := m.PushSamples(node)
@@ -371,4 +342,27 @@ func GetId(n *meshv1.Node) uint32 {
 
 func GetSampleId(p *meshv1.Sample) uint32 {
 	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
+}
+
+func getLogger(debug bool, pprofAddress string) *zap.SugaredLogger {
+	if debug {
+		go func() {
+			log.Println("Starting go debugging profiler pprof on port 6060")
+			http.ListenAndServe(pprofAddress+":6060", nil)
+		}()
+
+		logger, err := zap.NewDevelopment()
+		if err != nil {
+			log.Fatalf("Could not start debug logging - error: %+v", err)
+		}
+
+		return logger.Sugar()
+	}
+
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Could not start production logging - error: %+v", err)
+	}
+
+	return logger.Sugar()
 }

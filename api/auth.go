@@ -23,7 +23,7 @@ func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 				}
 
 				// check if token is correct
-				for _, t := range a.set.Tokens {
+				for _, t := range a.config.Tokens {
 					if authToken[7:] == t {
 						a.log.Infow("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeded")
 						return next(ctx, req)

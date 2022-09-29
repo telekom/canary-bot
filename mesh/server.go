@@ -78,17 +78,17 @@ func (s *MeshServer) Rtt(ctx context.Context, req *emptypb.Empty) (*emptypb.Empt
 
 func (m *Mesh) StartServer() error {
 	meshServer := &MeshServer{
-		log:               m.log.Named("server"),
+		log:               m.logger.Named("server"),
 		data:              &m.database,
-		name:              &m.config.StartupSettings.Name,
+		name:              &m.setupConfig.Name,
 		newNodeDiscovered: m.newNodeDiscovered,
 	}
 
-	if m.config.StartupSettings.DebugGrpc {
+	if m.setupConfig.DebugGrpc {
 		grpc_zap.ReplaceGrpcLoggerV2(meshServer.log.Named("grpc").Desugar())
 	}
 
-	listenAdd := m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10)
+	listenAdd := m.setupConfig.ListenAddress + ":" + strconv.FormatInt(m.setupConfig.ListenPort, 10)
 
 	meshServer.log.Infow("Start listening", "address", listenAdd)
 	lis, err := net.Listen("tcp", listenAdd)
@@ -100,10 +100,10 @@ func (m *Mesh) StartServer() error {
 
 	// TLS
 	tlsCredentials, err := h.LoadServerTLSCredentials(
-		m.config.StartupSettings.ServerCertPath,
-		m.config.StartupSettings.ServerKeyPath,
-		m.config.StartupSettings.ServerCert,
-		m.config.StartupSettings.ServerKey,
+		m.setupConfig.ServerCertPath,
+		m.setupConfig.ServerKeyPath,
+		m.setupConfig.ServerCert,
+		m.setupConfig.ServerKey,
 	)
 	if err != nil {
 		meshServer.log.Warnw("Cannot load TLS credentials - using insecure connection")

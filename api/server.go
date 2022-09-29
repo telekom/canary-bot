@@ -11,7 +11,6 @@ import (
 
 	"canary-bot/data"
 	h "canary-bot/helper"
-	"canary-bot/mesh"
 
 	third_party "canary-bot/proto/api/third_party"
 	apiv1 "canary-bot/proto/api/v1"
@@ -32,9 +31,22 @@ import (
 
 // Api implements the protobuf interface
 type Api struct {
-	data data.Database
-	set  *mesh.Settings
-	log  *zap.SugaredLogger
+	data   data.Database
+	config *Configuration
+	log    *zap.SugaredLogger
+}
+
+type Configuration struct {
+	Address        string
+	Port           int64
+	Tokens         []string
+	DebugGrpc      bool
+	ServerCertPath string
+	ServerKeyPath  string
+	ServerCert     []byte
+	ServerKey      []byte
+	CaCertPath     []string
+	CaCert         []byte
 }
 
 // ListUsers lists all users in the store.
@@ -66,14 +78,14 @@ func getOpenAPIHandler() http.Handler {
 	return http.FileServer(http.FS(subFS))
 }
 
-func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) error {
+func NewApi(data data.Database, config *Configuration, log *zap.SugaredLogger) error {
 	a := &Api{
-		data: data,
-		set:  set,
-		log:  log,
+		data:   data,
+		config: config,
+		log:    log,
 	}
 
-	if set.DebugGrpc {
+	if config.DebugGrpc {
 		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
 	}
 
@@ -81,10 +93,10 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 
 	// TLS for http proxy server
 	tlsCredentials, err := h.LoadServerTLSCredentials(
-		set.ServerCertPath,
-		set.ServerKeyPath,
-		set.ServerCert,
-		set.ServerKey,
+		config.ServerCertPath,
+		config.ServerKeyPath,
+		config.ServerCert,
+		config.ServerKey,
 	)
 
 	if err != nil {
@@ -96,7 +108,7 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 	// just load it if TLS is activated, not considered for edge-terminated TLS
 	var tlsClientCredentials credentials.TransportCredentials
 	if tlsCredentials != nil {
-		tlsClientCredentials, err = h.LoadClientTLSCredentials(set.CaCertPath, set.CaCert)
+		tlsClientCredentials, err = h.LoadClientTLSCredentials(config.CaCertPath, config.CaCert)
 
 	}
 
@@ -107,7 +119,7 @@ func NewApi(data data.Database, set *mesh.Settings, log *zap.SugaredLogger) erro
 		opts = append(opts, grpc.WithTransportCredentials(tlsClientCredentials))
 	}
 
-	addr := set.ListenAddress + ":" + strconv.FormatInt(set.ApiPort, 10)
+	addr := config.Address + ":" + strconv.FormatInt(config.Port, 10)
 	// Note: this will succeed asynchronously, once we've started the server below.
 	conn, err := grpc.DialContext(
 		context.Background(),

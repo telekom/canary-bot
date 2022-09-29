@@ -5,7 +5,9 @@ variables:
 stages:
   - test
   - build
+  - image
   - container_scan
+  - release
 
 include:
   - project: caas/cicd_templates
@@ -13,8 +15,15 @@ include:
   - project: caas/microservice_cicd
     file: container_scan.yml
 
-kaniko_build:
+binary_build:
   stage: build
+  image: dockerhub.devops.telekom.de/golang:1.18
+  script:
+    - go mod download
+    - CGO_ENABLED=0 go build -o ./build/cbot .
+
+image_build:
+  stage: image
   tags:
     - otc_run_docker_k8s
   variables:
@@ -37,7 +46,8 @@ kaniko_build:
                      --build-arg CI_JOB_TOKEN=${CI_JOB_TOKEN}
                      --build-arg PRIVATE_GO_SERVER=${PRIVATE_GO_SERVER}
                      --build-arg DOCKER_BUILD_ENVIRONMENT=${DOCKER_BUILD_ENVIRONMENT}
-                     --dockerfile ${DOCKERFILE_LOCATION}"
+                     --dockerfile ${DOCKERFILE_LOCATION}
+                     --no-push"
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
 
 go-test:
@@ -53,3 +63,14 @@ go-test:
     reports:
       junit: report.xml
   coverage: '/total-coverage \d+.\d+% of statements/'
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - echo "running release_job"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
