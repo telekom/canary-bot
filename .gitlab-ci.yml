@@ -21,6 +21,10 @@ binary_build:
   script:
     - go mod download
     - CGO_ENABLED=0 go build -o ./build/cbot .
+  cache:
+    key: binaries-cache
+    paths:
+      - build/cbot
 
 image_build:
   stage: image
