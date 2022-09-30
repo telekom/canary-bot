@@ -22,9 +22,9 @@ binary_build:
     - go mod download
     - CGO_ENABLED=0 go build -o build/cbot .
   cache:
-    key: binaries-cache
-    paths:
-      - build/cbot
+    key: $CI_COMMIT_REF_SLUG
+    path:
+      - build/
 
 image_build:
   stage: image
@@ -35,6 +35,10 @@ image_build:
   image:
     name: artifactory.devops.telekom.de/gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    path:
+      - build/
   script:
     - ls -lisa ./
     - ls -lisa ./build
