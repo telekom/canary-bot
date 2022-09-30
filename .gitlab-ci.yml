@@ -12,6 +12,7 @@ stages:
   - build
   - image
   - container_scan
+  - upload
   - release
 
 include:
@@ -79,7 +80,7 @@ image_build:
       fi
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
 
-upload:
+upload_binary:
   stage: upload
   image: dockerhub.devops.telekom.de/curlimages/curl:latest
   rules:
