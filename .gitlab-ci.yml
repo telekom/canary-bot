@@ -20,11 +20,11 @@ binary_build:
   image: dockerhub.devops.telekom.de/golang:1.18
   script:
     - go mod download
-    - CGO_ENABLED=0 go build -o /builds/caas/canary-bot/build/cbot .
+    - CGO_ENABLED=0 go build -o build/cbot .
   cache:
     key: binaries-cache
     paths:
-      - /builds/caas/canary-bot/build/cbot
+      - build/cbot
 
 image_build:
   stage: image
@@ -36,6 +36,8 @@ image_build:
     name: artifactory.devops.telekom.de/gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   script:
+    - ls -lisa ./
+    - ls -lisa ./build
     - export DOCKERFILE_LOCATION=$(find . -name Dockerfile -print -quit)
     - export PRIVATE_GO_SERVER=$(echo ${CI_SERVER_URL} | sed 's/https:\/\///g')
     - |

@@ -1,5 +1,5 @@
 FROM dockerhub.devops.telekom.de/alpine:3.16
-ADD /build /app
+ADD ./build /app
 WORKDIR /app
 ARG user_id=1001
 RUN adduser -S $user_id -G root -u $user_id \
