@@ -20,11 +20,11 @@ binary_build:
   image: dockerhub.devops.telekom.de/golang:1.18
   script:
     - go mod download
-    - CGO_ENABLED=0 go build -o ./build/cbot .
+    - CGO_ENABLED=0 go build -o /builds/caas/canary-bot/build/cbot .
   cache:
     key: binaries-cache
     paths:
-      - build/cbot
+      - /builds/caas/canary-bot/build/cbot
 
 image_build:
   stage: image
