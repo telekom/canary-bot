@@ -23,7 +23,7 @@ binary_build:
     - CGO_ENABLED=0 go build -o build/cbot .
   cache:
     key: $CI_COMMIT_REF_SLUG
-    path:
+    paths:
       - build/
 
 image_build:
@@ -37,7 +37,7 @@ image_build:
     entrypoint: [""]
   cache:
     key: $CI_COMMIT_REF_SLUG
-    path:
+    paths:
       - build/
   script:
     - ls -lisa ./
