@@ -2,10 +2,18 @@ variables:
   NO_PROXY: "$NO_PROXY,*.telekom.de"
   IMAGE_NAME: canary-bot
 
+  BINARY_NAME: "cbot"
+  BINARY_PATH: "build/"
+  BINARY: "${BINARY_PATH}${BINARY}"
+  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${BINARY_NAME}/${CI_COMMIT_TAG}"
+
 stages:
   - test
   - build
+  - image
   - container_scan
+  - upload
+  - release
 
 include:
   - project: caas/cicd_templates
@@ -13,8 +21,33 @@ include:
   - project: caas/microservice_cicd
     file: container_scan.yml
 
-kaniko_build:
+go-test:
+  stage: test
+  image: dockerhub.devops.telekom.de/golang:1.18
+  script:
+    - go get gotest.tools/gotestsum
+    - go install gotest.tools/gotestsum
+    - gotestsum --junitfile report.xml --format standard-verbose -- -coverprofile=cover.out -coverpkg=./... ./...
+    - go tool cover -func cover.out | grep total | awk '{print "total-coverage "$3" of statements"}'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+  coverage: '/total-coverage \d+.\d+% of statements/'
+
+binary_build:
   stage: build
+  image: dockerhub.devops.telekom.de/golang:1.18
+  script:
+    - go mod download
+    - CGO_ENABLED=0 go build -o ${BINARY} .
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - ${BINARY_PATH}
+
+image_build:
+  stage: image
   tags:
     - otc_run_docker_k8s
   variables:
@@ -22,6 +55,10 @@ kaniko_build:
   image:
     name: artifactory.devops.telekom.de/gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - ${BINARY_PATH}
   script:
     - export DOCKERFILE_LOCATION=$(find . -name Dockerfile -print -quit)
     - export PRIVATE_GO_SERVER=$(echo ${CI_SERVER_URL} | sed 's/https:\/\///g')
@@ -38,18 +75,30 @@ kaniko_build:
                      --build-arg PRIVATE_GO_SERVER=${PRIVATE_GO_SERVER}
                      --build-arg DOCKER_BUILD_ENVIRONMENT=${DOCKER_BUILD_ENVIRONMENT}
                      --dockerfile ${DOCKERFILE_LOCATION}"
+      if test "${CI_COMMIT_REF_PROTECTED}" != 'true'; then
+        KANIKO_PARAMS="${KANIKO_PARAMS} --no-push"
+      fi
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
 
-go-test:
-  stage: test
-  image: dockerhub.devops.telekom.de/golang:1.18
+upload_binary:
+  stage: upload
+  image: dockerhub.devops.telekom.de/curlimages/curl:latest
+  rules:
+    - if: $CI_COMMIT_TAG
   script:
-    - go get gotest.tools/gotestsum
-    - go install gotest.tools/gotestsum
-    - gotestsum --junitfile report.xml --format standard-verbose -- -coverprofile=cover.out -coverpkg=./... ./...
-    - go tool cover -func cover.out | grep total | awk '{print "total-coverage "$3" of statements"}'
-  artifacts:
-    when: always
-    reports:
-      junit: report.xml
-  coverage: '/total-coverage \d+.\d+% of statements/'
+    - |
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${BINARY} "${PACKAGE_REGISTRY_URL}/${BINARY}"
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - ${BINARY_PATH}
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - |
+      release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG \
+        --assets-link "{\"name\":\"${BINARY_NAME}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${BINARY}\"}"

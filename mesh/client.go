@@ -22,7 +22,7 @@ type MeshClient struct {
 
 //bool NameUnique
 func (m *Mesh) Join(targets []string) (bool, bool) {
-	log := m.log.Named("join-routine")
+	log := m.logger.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
 	log.Debugw("Starting")
 
@@ -32,7 +32,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 
 		err := m.initClient(node)
 		if err != nil {
-			m.log.Debug("Could not connect to client, joinMesh request failed")
+			m.logger.Debug("Could not connect to client, joinMesh request failed")
 			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
 				continue
@@ -43,12 +43,12 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 		res, err = m.clients[GetId(node)].client.JoinMesh(
 			context.Background(),
 			&meshv1.Node{
-				Name:   m.config.StartupSettings.Name,
-				Target: m.config.StartupSettings.JoinAddress,
+				Name:   m.setupConfig.Name,
+				Target: m.setupConfig.JoinAddress,
 			})
 
 		if err != nil {
-			m.log.Debug("Client connected, but joinMesh request failed")
+			m.logger.Debug("Client connected, but joinMesh request failed")
 			if index != len(targets)-1 {
 				log.Debugw("Trying next node", "error", err)
 				continue
@@ -72,8 +72,8 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	}
 	for _, node := range res.Nodes {
 		if GetId(node) != GetId(&meshv1.Node{
-			Name:   m.config.StartupSettings.Name,
-			Target: m.config.StartupSettings.JoinAddress,
+			Name:   m.setupConfig.Name,
+			Target: m.setupConfig.JoinAddress,
 		}) {
 			m.database.SetNode(data.Convert(node, NODE_OK))
 		}
@@ -82,7 +82,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 }
 
 func (m *Mesh) Ping(node *meshv1.Node) error {
-	log := m.log.Named("ping-routine")
+	log := m.logger.Named("ping-routine")
 	err := m.initClient(node)
 	if err != nil {
 		log.Debugw("Could not connect to client")
@@ -91,8 +91,8 @@ func (m *Mesh) Ping(node *meshv1.Node) error {
 	_, err = m.clients[GetId(node)].client.Ping(
 		context.Background(),
 		&meshv1.Node{
-			Name:   m.config.StartupSettings.Name,
-			Target: m.config.StartupSettings.JoinAddress,
+			Name:   m.setupConfig.Name,
+			Target: m.setupConfig.JoinAddress,
 		})
 	if err != nil {
 		log.Debugw("Ping failed")
@@ -103,7 +103,7 @@ func (m *Mesh) Ping(node *meshv1.Node) error {
 }
 
 func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
-	log := m.log.Named("discovery-routine")
+	log := m.logger.Named("discovery-routine")
 	err := m.initClient(toNode)
 	if err != nil {
 		log.Warnw("Could not connect to client - skip Node Discover Request", "node", toNode.Name)
@@ -114,8 +114,8 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 		&meshv1.NodeDiscoveryRequest{
 			NewNode: newNode,
 			IAmNode: &meshv1.Node{
-				Name:   m.config.StartupSettings.Name,
-				Target: m.config.StartupSettings.ListenAddress + ":" + strconv.FormatInt(m.config.StartupSettings.ListenPort, 10),
+				Name:   m.setupConfig.Name,
+				Target: m.setupConfig.ListenAddress + ":" + strconv.FormatInt(m.setupConfig.ListenPort, 10),
 			}})
 	if err != nil {
 		log.Warnf("Could not start request to client - skip Node Discover Request", "node", toNode.Name, "error", err)
@@ -124,7 +124,7 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 }
 
 func (m *Mesh) PushSamples(node *meshv1.Node) error {
-	log := m.log.Named("sample-routine")
+	log := m.logger.Named("sample-routine")
 	err := m.initClient(node)
 	if err != nil {
 		log.Debugw("Could not connect to client")
@@ -151,10 +151,10 @@ func (m *Mesh) PushSamples(node *meshv1.Node) error {
 
 func (m *Mesh) initClient(to *meshv1.Node) error {
 	nodeId := GetId(to)
-	log := m.log.Named("client")
+	log := m.logger.Named("client")
 	log.Debugw("Init client")
 
-	if m.config.StartupSettings.DebugGrpc {
+	if m.setupConfig.DebugGrpc {
 		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
 	}
 
@@ -162,7 +162,7 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 		var opts []grpc.DialOption
 
 		// TLS
-		tlsCredentials, err := h.LoadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
+		tlsCredentials, err := h.LoadClientTLSCredentials(m.setupConfig.CaCertPath, m.setupConfig.CaCert)
 		if err != nil {
 			log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
 			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -203,7 +203,7 @@ func (m *Mesh) timeoutInterceptor(
 	invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption,
 ) error {
-	ctx, close := context.WithTimeout(context.Background(), m.config.RequestTimeout)
+	ctx, close := context.WithTimeout(context.Background(), m.routineConfig.RequestTimeout)
 	defer close()
 	// Calls the invoker to execute RPC
 	err := invoker(ctx, method, req, reply, cc, opts...)
@@ -219,7 +219,7 @@ func (m *Mesh) closeClient(to *meshv1.Node) {
 }
 
 func (m *Mesh) Rtt() {
-	log := m.log.Named("rtt")
+	log := m.logger.Named("rtt")
 	log.Debugw("Starting RTT measurement")
 	var opts []grpc.DialOption
 	var rttStartH, rttStart, rttEnd time.Time
@@ -233,12 +233,12 @@ func (m *Mesh) Rtt() {
 	node := nodes[rand.Intn(len(nodes))]
 	log.Debugw("Node selected", "node", node.Name)
 	// grpc logging
-	if m.config.StartupSettings.DebugGrpc {
+	if m.setupConfig.DebugGrpc {
 		grpc_zap.ReplaceGrpcLoggerV2(log.Named("grpc").Desugar())
 	}
 
 	// TLS
-	tlsCredentials, err := h.LoadClientTLSCredentials(m.config.StartupSettings.CaCertPath, m.config.StartupSettings.CaCert)
+	tlsCredentials, err := h.LoadClientTLSCredentials(m.setupConfig.CaCertPath, m.setupConfig.CaCert)
 	if err != nil {
 		log.Debugw("Cannot load TLS credentials - starting insecure connection", "error", err.Error())
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -286,7 +286,7 @@ func (m *Mesh) Rtt() {
 	// safe samples
 	m.database.SetSample(
 		&data.Sample{
-			From:  m.config.StartupSettings.Name,
+			From:  m.setupConfig.Name,
 			To:    node.Name,
 			Key:   data.RTT_TOTAL,
 			Value: strconv.FormatInt(rttH.Nanoseconds(), 10),
@@ -296,7 +296,7 @@ func (m *Mesh) Rtt() {
 
 	m.database.SetSample(
 		&data.Sample{
-			From:  m.config.StartupSettings.Name,
+			From:  m.setupConfig.Name,
 			To:    node.Name,
 			Key:   data.RTT_REQUEST,
 			Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
