@@ -4,7 +4,7 @@ variables:
 
   BINARY_NAME: "cbot"
   BINARY_PATH: "build/"
-  BINARY: "${BINARY_PATH}${BINARY}"
+  BINARY: "${BINARY_PATH}${BINARY_NAME}"
   PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${BINARY_NAME}/${CI_COMMIT_TAG}"
 
 stages:
@@ -87,7 +87,7 @@ upload_binary:
     - if: $CI_COMMIT_TAG
   script:
     - |
-      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${BINARY} "${PACKAGE_REGISTRY_URL}/${BINARY}"
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file ${BINARY} "${PACKAGE_REGISTRY_URL}/${BINARY_NAME}"
   cache:
     key: $CI_COMMIT_REF_SLUG
     paths:
@@ -101,4 +101,4 @@ release_job:
   script:
     - |
       release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG \
-        --assets-link "{\"name\":\"${BINARY_NAME}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${BINARY}\"}"
+        --assets-link "{\"name\":\"${BINARY_NAME}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${BINARY_NAME}\"}"
