@@ -102,3 +102,4 @@ release_job:
     - |
       release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG \
         --assets-link "{\"name\":\"${BINARY_NAME}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${BINARY_NAME}\"}"
+        --assets-link "{\"name\":\"${BINARY_NAME} docker image MTR\",\"url\":\"https://mtr.devops.telekom.de/repository/caas/canary-bot\"}"
