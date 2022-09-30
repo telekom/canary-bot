@@ -1,6 +1,7 @@
 variables:
   NO_PROXY: "$NO_PROXY,*.telekom.de"
   IMAGE_NAME: canary-bot
+  IMAGE_REPOSITORY: $DOCKER_REGISTRY/caas/$IMAGE_NAME
 
   BINARY_NAME: "cbot"
   BINARY_PATH: "build/"
@@ -50,8 +51,6 @@ image_build:
   stage: image
   tags:
     - otc_run_docker_k8s
-  variables:
-    IMAGE_REPOSITORY: $DOCKER_REGISTRY/caas/$IMAGE_NAME
   image:
     name: artifactory.devops.telekom.de/gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -78,6 +77,9 @@ image_build:
       if test "${CI_COMMIT_REF_PROTECTED}" != 'true'; then
         KANIKO_PARAMS="${KANIKO_PARAMS} --no-push"
       fi
+      if -z "${CI_COMMIT_TAG}"; then
+        KANIKO_PARAMS="${KANIKO_PARAMS} --destination ${IMAGE_REPOSITORY}:${CI_COMMIT_TAG}"
+      fi
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
 
 upload_binary:
@@ -101,5 +103,5 @@ release_job:
   script:
     - |
       release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG \
-        --assets-link "{\"name\":\"${BINARY_NAME}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${BINARY_NAME}\"}"
-        --assets-link "{\"name\":\"${BINARY_NAME} docker image MTR\",\"url\":\"https://mtr.devops.telekom.de/repository/caas/canary-bot\"}"
+        --assets-link "{\"name\":\"${BINARY_NAME} binary\",\"url\":\"${PACKAGE_REGISTRY_URL}/${BINARY_NAME}\",\"link_type\":\"package\"}" \
+        --assets-link "{\"name\":\"${BINARY_NAME} image\",\"url\":\"${IMAGE_REPOSITORY}:${CI_COMMIT_TAG}\",\"link_type\":\"image\"}"
