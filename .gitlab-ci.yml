@@ -36,7 +36,7 @@ go-test:
   coverage: '/total-coverage \d+.\d+% of statements/'
 
 binary_build:
-  stage: push
+  stage: build
   image: dockerhub.devops.telekom.de/golang:1.18
   script:
     - go mod download
@@ -47,7 +47,7 @@ binary_build:
       - ${BINARY_PATH}
 
 build_push_image:
-  stage: image
+  stage: push
   tags:
     - otc_run_docker_k8s
   image:
