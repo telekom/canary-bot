@@ -1,13 +1,26 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "v1/api.proto",
-    "version": "version not set"
+    "title": "Sample API",
+    "description": "API for the measurement samples by the canary-mesh",
+    "version": "1.0",
+    "contact": {
+      "name": "CaaS@TelIT",
+      "url": "https://gitlab.devops.telekom.de/caas/canary-bot",
+      "email": "caas-request@telekom.de"
+    },
+    "license": {
+      "name": "xxx License",
+      "url": "https://gitlab.devops.telekom.de/caas/canary-bot/-/blob/main/LICENSE"
+    }
   },
   "tags": [
     {
       "name": "SampleService"
     }
+  ],
+  "schemes": [
+    "https"
   ],
   "consumes": [
     "application/json"
@@ -77,7 +90,8 @@
           },
           "title": "list of messured samples"
         }
-      }
+      },
+      "title": "respnse providing a list of measure samples"
     },
     "v1Sample": {
       "type": "object",
@@ -102,7 +116,8 @@
           "type": "string",
           "title": "when the sample was messured"
         }
-      }
+      },
+      "title": "a measurement sample"
     }
   }
 }

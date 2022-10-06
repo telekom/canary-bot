@@ -5,8 +5,29 @@ package api.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
 import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
 
 option go_package = "canary-bot/proto/api/v1;apiv1";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Sample API";
+    version: "1.0";
+    description: "API for the measurement samples by the canary-mesh";
+    contact: {
+      name: "CaaS@TelIT";
+      url: "https://gitlab.devops.telekom.de/caas/canary-bot";
+      email: "caas-request@telekom.de";
+    };
+    license: {
+      name: "xxx License";
+      url: "https://gitlab.devops.telekom.de/caas/canary-bot/-/blob/main/LICENSE";
+    };
+  };
+  schemes: HTTPS;
+  consumes: "application/json";
+  produces: "application/json";
+};
 
 service SampleService {
   rpc ListSamples(ListSampleRequest) returns (ListSampleResponse) {
@@ -16,13 +37,16 @@ service SampleService {
   }
 }
 
+// empty sample request
 message ListSampleRequest {}
 
+// response providing a list of measurement samples
 message ListSampleResponse {
   // list of messured samples
   repeated Sample samples = 1;
 }
 
+// a measurement sample
 message Sample {
   // by whom the sample was messured
   string from = 1;

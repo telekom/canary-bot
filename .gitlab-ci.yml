@@ -11,9 +11,8 @@ variables:
 stages:
   - test
   - build
-  - image
+  - push
   - container_scan
-  - upload
   - release
 
 include:
@@ -37,17 +36,17 @@ go-test:
   coverage: '/total-coverage \d+.\d+% of statements/'
 
 binary_build:
-  stage: build
+  stage: push
   image: dockerhub.devops.telekom.de/golang:1.18
   script:
     - go mod download
-    - CGO_ENABLED=0 go build -o ${BINARY} .
+    - CGO_ENABLED=0 go build -ldflags "-s -w" -o ${BINARY} .
   cache:
     key: $CI_COMMIT_REF_SLUG
     paths:
       - ${BINARY_PATH}
 
-image_build:
+build_push_image:
   stage: image
   tags:
     - otc_run_docker_k8s
@@ -83,7 +82,7 @@ image_build:
       echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
 
 upload_binary:
-  stage: upload
+  stage: push
   image: dockerhub.devops.telekom.de/curlimages/curl:latest
   rules:
     - if: $CI_COMMIT_TAG

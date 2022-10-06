@@ -78,7 +78,7 @@ func getOpenAPIHandler() http.Handler {
 	return http.FileServer(http.FS(subFS))
 }
 
-func NewApi(data data.Database, config *Configuration, log *zap.SugaredLogger) error {
+func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger) error {
 	a := &Api{
 		data:   data,
 		config: config,

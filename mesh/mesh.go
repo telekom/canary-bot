@@ -103,7 +103,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		CaCertPath:     setupConfig.CaCertPath,
 		CaCert:         setupConfig.CaCert,
 	}
-	if err = api.NewApi(database, apiConfig, logger.Named("api")); err != nil {
+	if err = api.StartApi(database, apiConfig, logger.Named("api")); err != nil {
 		logger.Fatal("Could not start API - Error: %+v", err)
 	}
 }
@@ -156,6 +156,7 @@ func (m *Mesh) timerRoutines() {
 		case <-m.pushSampleTicker.C:
 			log := m.logger.Named("sample-routine")
 			log.Debugw("Starting push sample routine to random nodes", "amount", m.routineConfig.PushSampleToAmount)
+			// TODO GetRandomNodeListByState(NODE_OK, amountOfNodes)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 			if nodes == nil {
 				log.Debugw("No Node connected or all nodes in timeout")
@@ -230,6 +231,8 @@ func (m *Mesh) channelRoutines() {
 			log.Info("Node joined - new node")
 
 			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.routineConfig.BroadcastToAmount)
+			// TODO: getRandomNodeListByStateWithoutNode --> wie bei SendSampleRoutine
+			// getRandomNodeListByState(STATE, AMOUNTX, opts...)
 			nodes := m.database.GetNodeListByState(NODE_OK)
 
 			// Remove node from list that sent the discovery request
@@ -273,6 +276,7 @@ func (m *Mesh) channelRoutines() {
 func (m *Mesh) retryPing(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration, timedOut bool) {
 	// TODO refactor retries & delay -> directly from class
 	// TODO DB Get node, anstelle timeout bool
+	// TODO remove timout retry routine
 	log := m.logger.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
 	for r := 0; ; r++ {
