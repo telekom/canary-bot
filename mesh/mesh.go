@@ -302,6 +302,9 @@ func (m *Mesh) retryPing(ctx context.Context, node *meshv1.Node, retries int, de
 			break
 		}
 
+		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RTT_REQUEST}))
+		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RTT_TOTAL}))
+
 		if !timedOut {
 			log.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String())
 			m.database.SetNode(data.Convert(node, NODE_RETRY))

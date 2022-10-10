@@ -1,5 +1,7 @@
 package data
 
+import "time"
+
 // Insert a measurement sample in the db
 func (db *Database) SetSample(sample *Sample) {
 	// Create a write transaction
@@ -8,6 +10,30 @@ func (db *Database) SetSample(sample *Sample) {
 
 	sample.Id = GetSampleId(sample)
 	err := txn.Insert("sample", sample)
+	if err != nil {
+		panic(err)
+	}
+
+	// Commit the transaction
+	txn.Commit()
+}
+
+// Set a sample to not a number "NaN"
+// E.g. a ping failed, RTT has to be set to NaN
+func (db *Database) SetSampleNaN(id uint32) {
+	//(from string, to string, sampleKey int64) {
+	// Create a write transaction
+	txn := db.Txn(true)
+	defer txn.Abort()
+
+	sample := *db.GetSample(id)
+	if sample.Id == 0 {
+		return
+	}
+
+	sample.Value = "NaN"
+	sample.Ts = time.Now().Unix()
+	err := txn.Insert("sample", &sample)
 	if err != nil {
 		panic(err)
 	}

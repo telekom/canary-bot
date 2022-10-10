@@ -23,6 +23,21 @@ func Test_SetSample(t *testing.T) {
 	}
 }
 
+func Test_SetSampleNaN(t *testing.T) {
+	db, _ := NewMemDB(log)
+	for _, sample := range samples {
+		db.SetSample(sample)
+		db.SetSampleNaN(GetSampleId(sample))
+	}
+	txn := db.Txn(false)
+	raw, _ := txn.Get("sample", "id")
+	for obj := raw.Next(); obj != nil; obj = raw.Next() {
+		if obj.(*Sample).Value != "NaN" {
+			t.Errorf("The sample value is not Nan as expected. Sample value: %v", obj.(*Sample).Value)
+		}
+	}
+}
+
 func Test_GetSample(t *testing.T) {
 	tests := []struct {
 		name         string
