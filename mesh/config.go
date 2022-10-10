@@ -16,12 +16,9 @@ type RoutineConfiguration struct {
 	JoinInterval time.Duration
 
 	// Ping config
-	PingInterval       time.Duration
-	PingRetryAmount    int
-	PingRetryDelay     time.Duration
-	TimeoutRetryPause  time.Duration
-	TimeoutRetryAmount int
-	TimeoutRetryDelay  time.Duration
+	PingInterval    time.Duration
+	PingRetryAmount int
+	PingRetryDelay  time.Duration
 
 	// Node discovery
 	BroadcastToAmount int
@@ -77,9 +74,6 @@ func StandardProductionRoutineConfig() *RoutineConfiguration {
 		PingInterval:          time.Second * 10,
 		PingRetryAmount:       3,
 		PingRetryDelay:        time.Second * 5,
-		TimeoutRetryPause:     time.Minute,
-		TimeoutRetryAmount:    3,
-		TimeoutRetryDelay:     time.Second * 30,
 		BroadcastToAmount:     2,
 		PushSampleInterval:    time.Second * 5,
 		PushSampleToAmount:    2,

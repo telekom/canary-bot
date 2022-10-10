@@ -81,7 +81,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	return true, true
 }
 
-func (m *Mesh) Ping(node *meshv1.Node) error {
+func (m *Mesh) ping(node *meshv1.Node) error {
 	log := m.logger.Named("ping-routine")
 	err := m.initClient(node)
 	if err != nil {

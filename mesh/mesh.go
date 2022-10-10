@@ -26,7 +26,6 @@ type Mesh struct {
 	clients map[uint32]*MeshClient
 
 	newNodeDiscovered chan NodeDiscovered
-	timeoutNode       chan *meshv1.Node
 
 	pingTicker        *time.Ticker
 	pushSampleTicker  *time.Ticker
@@ -70,7 +69,6 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		setupConfig:        setupConfig,
 		clients:            map[uint32]*MeshClient{},
 		newNodeDiscovered:  make(chan NodeDiscovered),
-		timeoutNode:        make(chan *meshv1.Node),
 		quitJoinRoutine:    make(chan bool, 1),
 		restartJoinRoutine: make(chan bool, 1),
 		joinRoutineDone:    false,
@@ -151,7 +149,8 @@ func (m *Mesh) timerRoutines() {
 				break
 			}
 
-			go m.retryPing(context.Background(), nodes[rand.Intn(len(nodes))].Convert(), m.routineConfig.PingRetryAmount, m.routineConfig.PingRetryDelay, false)
+			// TODO GetRandomNodeListByState(NODE_OK, amountOfNodes) -> wie bei m.pushSampleTicker?
+			go m.retryPing(nodes[rand.Intn(len(nodes))].Convert())
 
 		case <-m.pushSampleTicker.C:
 			log := m.logger.Named("sample-routine")
@@ -261,60 +260,44 @@ func (m *Mesh) channelRoutines() {
 			}
 
 			m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
-		case node := <-m.timeoutNode:
-			log := m.logger.Named("ping-routine")
-			m.database.SetNode(data.Convert(node, NODE_TIMEOUT_RETRY))
-			log.Debugw("Start Timeout Retry Routine", "delay", m.routineConfig.TimeoutRetryPause.String())
-			go func() {
-				time.Sleep(m.routineConfig.TimeoutRetryPause)
-				m.retryPing(context.Background(), node, m.routineConfig.TimeoutRetryAmount, m.routineConfig.TimeoutRetryDelay, true)
-			}()
 		}
 	}
 }
 
-func (m *Mesh) retryPing(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration, timedOut bool) {
-	// TODO refactor retries & delay -> directly from class
-	// TODO DB Get node, anstelle timeout bool
-	// TODO remove timout retry routine
+func (m *Mesh) retryPing(node *meshv1.Node) {
 	log := m.logger.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
-	for r := 0; ; r++ {
-		err := m.Ping(node)
 
-		if err == nil || r >= retries {
-			if err != nil {
-				log.Warnw("Retry timeout - limit reached", "node", node.Name, "limit", retries)
-				if !timedOut {
-					m.database.SetNode(data.Convert(node, NODE_TIMEOUT))
-					m.timeoutNode <- node
-				} else {
-					m.database.DeleteNode(GetId(node))
-					if len(m.database.GetNodeList()) == 0 {
-						m.restartJoinRoutine <- true
-					}
-					log.Warnw("Removed node from mesh", "node", node.Name)
-				}
-			} else {
-				m.database.SetNode(data.Convert(node, NODE_OK))
-				log.Infow("Ping ok", "node", node.Name)
-			}
-			break
+	for r := 1; r <= m.routineConfig.PingRetryAmount; r++ {
+		err := m.ping(node)
+
+		// Ping ok
+		if err == nil {
+			m.database.SetNode(data.Convert(node, NODE_OK))
+			log.Infow("Ping ok", "node", node.Name, "attempt", r)
+			return
 		}
 
+		// Ping failed
+		log.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String(), "retry in", m.routineConfig.PingRetryDelay.String(), "attempt", r)
+		m.database.SetNode(data.Convert(node, NODE_TIMEOUT))
 		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RTT_REQUEST}))
 		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RTT_TOTAL}))
 
-		if !timedOut {
-			log.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String())
-			m.database.SetNode(data.Convert(node, NODE_RETRY))
+		if r != m.routineConfig.PingRetryAmount {
+			// Retry delay
+			time.Sleep(m.routineConfig.PingRetryDelay)
 		}
-		log.Debugw("Retrying", "node", m.database.GetNode(GetId(node)).Name, "delay", delay)
-		select {
-		case <-time.After(delay):
-		case <-ctx.Done():
-			log.Warnw("Context error", "error", ctx.Err().Error())
-		}
+	}
+
+	// Retry limit reached
+	log.Infow("Retry limit reached", "node", node.Name, "limit", m.routineConfig.PingRetryAmount)
+	log.Warnw("Removing node from mesh", "node", node.Name)
+	m.database.DeleteNode(GetId(node))
+
+	// Check if node was last node in mesh
+	if len(m.database.GetNodeList()) == 0 {
+		m.restartJoinRoutine <- true
 	}
 }
 
