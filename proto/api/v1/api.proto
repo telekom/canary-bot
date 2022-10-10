@@ -12,7 +12,7 @@ option go_package = "canary-bot/proto/api/v1;apiv1";
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   info: {
     title: "Sample API";
-    version: "1.0";
+    version: "1.1";
     description: "API for the measurement samples by the canary-mesh";
     contact: {
       name: "CaaS@TelIT";
@@ -53,7 +53,7 @@ message Sample {
   // to whom the sample was messured
   string to = 2;
   // the sample name
-  string sample = 3;
+  string type = 3;
   // the sample value
   string value = 4;
   // when the sample was messured

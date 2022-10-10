@@ -3,7 +3,7 @@
   "info": {
     "title": "Sample API",
     "description": "API for the measurement samples by the canary-mesh",
-    "version": "1.0",
+    "version": "1.1",
     "contact": {
       "name": "CaaS@TelIT",
       "url": "https://gitlab.devops.telekom.de/caas/canary-bot",
@@ -91,7 +91,7 @@
           "title": "list of messured samples"
         }
       },
-      "title": "respnse providing a list of measure samples"
+      "title": "response providing a list of measurement samples"
     },
     "v1Sample": {
       "type": "object",
@@ -104,7 +104,7 @@
           "type": "string",
           "title": "to whom the sample was messured"
         },
-        "sample": {
+        "type": {
           "type": "string",
           "title": "the sample name"
         },
