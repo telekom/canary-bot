@@ -5,7 +5,6 @@ import (
 	"canary-bot/data"
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
-	"context"
 	"log"
 	"math/rand"
 	"net/http"
@@ -155,29 +154,18 @@ func (m *Mesh) timerRoutines() {
 		case <-m.pushSampleTicker.C:
 			log := m.logger.Named("sample-routine")
 			log.Debugw("Starting push sample routine to random nodes", "amount", m.routineConfig.PushSampleToAmount)
-			// TODO GetRandomNodeListByState(NODE_OK, amountOfNodes)
-			nodes := m.database.GetNodeListByState(NODE_OK)
-			if nodes == nil {
-				log.Debugw("No Node connected or all nodes in timeout")
+
+			nodes := m.database.GetRandomNodeListByState(NODE_OK, m.routineConfig.PushSampleToAmount)
+			if len(nodes) == 0 {
+				log.Debugw("No node connected or all nodes in timeout")
 				break
 			}
 
-			for broadcastCount := 0; broadcastCount < m.routineConfig.PushSampleToAmount; broadcastCount++ {
-				if len(nodes) <= 0 {
-					log.Debug("Stopping routine prematurely - no more known nodes")
-					break
-				}
-				randomIndex := rand.Intn(len(nodes))
-				randomNode := nodes[randomIndex]
-
-				log.Debugw("Pushing samples", "node", randomNode.Name)
-				go m.retryPushSample(context.Background(), randomNode.Convert(), m.routineConfig.PushSampleRetryAmount, m.routineConfig.PushSampleRetryDelay)
-
-				// Remove node already started broadcast to from list
-				nodes[randomIndex] = nodes[len(nodes)-1]
-				nodes = nodes[:len(nodes)-1]
-
+			for broadcastCount := 0; broadcastCount < len(nodes); broadcastCount++ {
+				log.Debugw("Pushing samples", "node", nodes[broadcastCount].Name)
+				go m.retryPushSample(nodes[broadcastCount].Convert())
 			}
+
 		case <-m.cleanSampleTicker.C:
 			// check if sample is too old and delete
 			for _, sample := range m.database.GetSampleList() {
@@ -301,27 +289,26 @@ func (m *Mesh) retryPing(node *meshv1.Node) {
 	}
 }
 
-func (m *Mesh) retryPushSample(ctx context.Context, node *meshv1.Node, retries int, delay time.Duration) {
+func (m *Mesh) retryPushSample(node *meshv1.Node) {
 	log := m.logger.Named("sample-routine")
 	log.Debugw("Push sample retry routine started", "node", node.Name)
-	for r := 0; ; r++ {
-		err := m.PushSamples(node)
 
-		if err == nil || r >= retries {
-			if err != nil {
-				log.Debugw("Push sample retry timeout - limit reached", "node", node.Name, "limit", retries)
-			} else {
-				log.Debug("Push samples ok")
-			}
+	for r := 1; r <= m.routineConfig.PushSampleRetryAmount; r++ {
+		err := m.pushSamples(node)
+
+		// Push ok
+		if err == nil {
+			log.Debug("Push samples ok")
 			m.database.SetNodeTsNow(GetId(node))
-			break
+			return
 		}
 
-		log.Debugw("Retrying", "node", node.Name, "delay", delay)
-		select {
-		case <-time.After(delay):
-		case <-ctx.Done():
-			log.Warnw("Push sample retry context error", "error", ctx.Err())
+		// Push failed
+		log.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "atempt", r)
+
+		if r != m.routineConfig.PushSampleRetryAmount {
+			// Retry delay
+			time.Sleep(m.routineConfig.PushSampleRetryDelay)
 		}
 	}
 }

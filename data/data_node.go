@@ -1,6 +1,7 @@
 package data
 
 import (
+	"math/rand"
 	"time"
 )
 
@@ -114,5 +115,31 @@ func (db *Database) GetNodeListByState(byState int) []*Node {
 			nodes = append(nodes, obj.(*Node))
 		}
 	}
+	return nodes
+}
+
+// Get a specific amount of random nodes by state
+func (db *Database) GetRandomNodeListByState(byState int, amountOfNodes int) []*Node {
+	nodes := db.GetNodeListByState(byState)
+
+	if len(nodes) == 0 {
+		return nodes
+	}
+	// shuffel nodes array randomly
+	nodes = shuffleNodes(nodes)
+
+	// check if list is already smaller or equalt to requested amout
+	if len(nodes) <= amountOfNodes {
+		return nodes
+	}
+
+	return nodes[:amountOfNodes]
+}
+
+func shuffleNodes(nodes []*Node) []*Node {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(nodes), func(i, j int) {
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	})
 	return nodes
 }

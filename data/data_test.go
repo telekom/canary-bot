@@ -11,7 +11,7 @@ import (
 )
 
 var log *zap.SugaredLogger
-var nodes []*Node
+var nodes, nodesSameState []*Node
 var samples []*Sample
 
 func init() {
@@ -22,6 +22,16 @@ func init() {
 		{Id: 1, Name: "node_1", Target: "target_1", State: 1, LastSampleTs: 0},
 		{Id: 2, Name: "node_2", Target: "target_2", State: 2, LastSampleTs: 0},
 		{Id: 3, Name: "node_3", Target: "target_3", State: 2, LastSampleTs: 0},
+		{Id: 4, Name: "node_4", Target: "target_4", State: 3, LastSampleTs: 0},
+		{Id: 5, Name: "node_5", Target: "target_5", State: 3, LastSampleTs: 0},
+	}
+
+	nodesSameState = []*Node{
+		{Id: 1, Name: "node_1", Target: "target_1", State: 0, LastSampleTs: 0},
+		{Id: 2, Name: "node_2", Target: "target_2", State: 0, LastSampleTs: 0},
+		{Id: 3, Name: "node_3", Target: "target_3", State: 0, LastSampleTs: 0},
+		{Id: 4, Name: "node_4", Target: "target_4", State: 0, LastSampleTs: 0},
+		{Id: 5, Name: "node_5", Target: "target_5", State: 0, LastSampleTs: 0},
 	}
 
 	samples = []*Sample{

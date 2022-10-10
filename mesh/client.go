@@ -123,7 +123,7 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 	return
 }
 
-func (m *Mesh) PushSamples(node *meshv1.Node) error {
+func (m *Mesh) pushSamples(node *meshv1.Node) error {
 	log := m.logger.Named("sample-routine")
 	err := m.initClient(node)
 	if err != nil {
