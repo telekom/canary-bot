@@ -224,6 +224,7 @@ func (m *Mesh) Rtt() {
 	var opts []grpc.DialOption
 	var rttStartH, rttStart, rttEnd time.Time
 
+	// TODO switch to GetRandom...
 	nodes := m.database.GetNodeListByState(NODE_OK)
 	if nodes == nil {
 		log.Debugw("No Node suitable for RTT measurement")

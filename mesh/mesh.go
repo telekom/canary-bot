@@ -14,33 +14,54 @@ import (
 	"go.uber.org/zap"
 )
 
+// Main struct for the mesh
 type Mesh struct {
-	database      data.Database
-	logger        *zap.SugaredLogger
+	// Mesh in-memory datastore
+	database data.Database
+	// Global zap logger
+	logger *zap.SugaredLogger
+	// Configuration for the timer- and channelRoutines
 	routineConfig *RoutineConfiguration
-	setupConfig   *SetupConfiguration
+	// Configuration how the bot can connect to the mesh etc.
+	setupConfig *SetupConfiguration
 
-	mu      sync.Mutex
+	// GRPC client store
 	clients map[uint32]*MeshClient
+	mu      sync.Mutex
 
+	// Channel if a new node is discovered in the mesh
 	newNodeDiscovered chan NodeDiscovered
 
+	// timerRoutine main functionality timers
 	pingTicker        *time.Ticker
 	pushSampleTicker  *time.Ticker
 	cleanSampleTicker *time.Ticker
 
+	// timerRoutine sample measurement timers
 	rttTicker *time.Ticker
 
+	// Channels to quit and re-enter mesh joinRoutine
 	quitJoinRoutine    chan bool
 	restartJoinRoutine chan bool
 	joinRoutineDone    bool
 }
 
+// A newly discoverd node in the mesh
 type NodeDiscovered struct {
 	NewNode *meshv1.Node
 	From    uint32 // TODO change to name
 }
 
+// Create a canary bot & mesh with the desired configuration
+// Use a pre-defined routineConfig with e.g. StandardProductionRoutineConfig()
+// and define your mesh setip configuration
+//
+// - Logger will be initialised
+// - setupConfig will be checked
+// - DB will be created
+// - Mesh will be initialised
+// - Routines will be started
+// - API will be created
 func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupConfiguration) {
 	// prepare logging
 	logger := getLogger(setupConfig.Debug, setupConfig.ListenAddress)
@@ -73,6 +94,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 	}
 	logger.Info("Starting mesh")
 
+	// start mesh server
 	go func() {
 		logger.Info("Starting server, listening vor joining nodes")
 		err := m.StartServer()
@@ -82,6 +104,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		}
 	}()
 
+	// start main mesh functionality
 	logger.Infow("Starting mesh routines")
 	go m.channelRoutines()
 	go m.timerRoutines()
@@ -99,13 +122,18 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		CaCertPath:     setupConfig.CaCertPath,
 		CaCert:         setupConfig.CaCert,
 	}
+
+	// start the mesh API
 	if err = api.StartApi(database, apiConfig, logger.Named("api")); err != nil {
 		logger.Fatal("Could not start API - Error: %+v", err)
 	}
 }
 
+// Routines that will be executed by timer interrupts.
+// In the startup phase, just the joinRoutine timer will run
+// After joining a mesh or a node is joining all routines
+// will be started and the join Routine will stop.
 func (m *Mesh) timerRoutines() {
-
 	// Timer to send ping to node
 	joinTicker := time.NewTicker(m.routineConfig.JoinInterval)
 	// Timer to send ping to node
@@ -118,7 +146,7 @@ func (m *Mesh) timerRoutines() {
 	m.cleanSampleTicker = time.NewTicker(m.routineConfig.CleanSampleInterval)
 	m.cleanSampleTicker.Stop()
 
-	// Sample: RTT
+	// Sample measurement: RTT
 	m.rttTicker = time.NewTicker(m.routineConfig.RttInterval)
 	m.rttTicker.Stop()
 
@@ -141,24 +169,28 @@ func (m *Mesh) timerRoutines() {
 			log := m.logger.Named("ping-routine")
 			log.Debugw("Starting")
 
+			// get a random healthy node
 			nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
 			if len(nodes) == 0 {
 				log.Debugw("No Node connected or all nodes in timeout")
 				break
 			}
 
+			// ping choosen node
 			go m.retryPing(nodes[0].Convert())
 
 		case <-m.pushSampleTicker.C:
 			log := m.logger.Named("sample-routine")
 			log.Debugw("Starting push sample routine to random nodes", "amount", m.routineConfig.PushSampleToAmount)
 
+			// get random, configured amount of healty nodes
 			nodes := m.database.GetRandomNodeListByState(NODE_OK, m.routineConfig.PushSampleToAmount)
 			if len(nodes) == 0 {
 				log.Debugw("No node connected or all nodes in timeout")
 				break
 			}
 
+			// push own measurement samples to choosen nodes
 			for _, node := range nodes {
 				log.Debugw("Pushing samples", "node", node.Name)
 				go m.retryPushSample(node.Convert())
@@ -174,12 +206,14 @@ func (m *Mesh) timerRoutines() {
 			}
 
 		case <-m.rttTicker.C:
+			// measure round-trip-time samples
 			go m.Rtt()
 
 		case <-m.restartJoinRoutine:
+			// stop ticker and re-enter joinRoutine
 			joinTicker.Reset(m.routineConfig.JoinInterval)
 			m.joinRoutineDone = false
-			// starting ticker after join routine
+
 			m.pingTicker.Stop()
 			m.pushSampleTicker.Stop()
 			m.cleanSampleTicker.Stop()
@@ -188,7 +222,7 @@ func (m *Mesh) timerRoutines() {
 		case <-m.quitJoinRoutine:
 			joinTicker.Stop()
 			m.joinRoutineDone = true
-			// starting ticker after join routine
+			// starting ticker after joinRoutine
 			m.pingTicker.Reset(m.routineConfig.PingInterval)
 			m.pushSampleTicker.Reset(m.routineConfig.PushSampleInterval)
 			m.cleanSampleTicker.Reset(m.routineConfig.CleanSampleInterval)
@@ -199,6 +233,9 @@ func (m *Mesh) timerRoutines() {
 	}
 }
 
+// Routines that will be executed by event/channel interrupts.
+// Events:
+// - nodeDiscovered: A new node is discovered in the mesh
 func (m *Mesh) channelRoutines() {
 	for {
 		select {
@@ -234,14 +271,18 @@ func (m *Mesh) channelRoutines() {
 	}
 }
 
+// Will call the ping method with set retry configuration.
+// Database nodes and samples will be updated.
 func (m *Mesh) retryPing(node *meshv1.Node) {
 	log := m.logger.Named("ping-routine")
 	log.Debugw("Retry routine started", "node", node.Name)
 
+	// start retry ping logic
 	for r := 1; r <= m.routineConfig.PingRetryAmount; r++ {
+		// Ping the node
 		err := m.ping(node)
 
-		// Ping ok
+		// Ping ok; return
 		if err == nil {
 			m.database.SetNode(data.Convert(node, NODE_OK))
 			log.Infow("Ping ok", "node", node.Name, "attempt", r)
@@ -271,14 +312,18 @@ func (m *Mesh) retryPing(node *meshv1.Node) {
 	}
 }
 
+// Will call the pushSample method with set retry configuration.
+// Database nodes and samples will be updated.
 func (m *Mesh) retryPushSample(node *meshv1.Node) {
 	log := m.logger.Named("sample-routine")
 	log.Debugw("Push sample retry routine started", "node", node.Name)
 
+	// start retry pushSample logic
 	for r := 1; r <= m.routineConfig.PushSampleRetryAmount; r++ {
+		// Push all samples to node
 		err := m.pushSamples(node)
 
-		// Push ok
+		// Push ok; return
 		if err == nil {
 			log.Debug("Push samples ok")
 			m.database.SetNodeTsNow(GetId(node))
@@ -295,21 +340,28 @@ func (m *Mesh) retryPushSample(node *meshv1.Node) {
 	}
 }
 
+// Get the ID of a node
+// Hash integer value of the target field (name of node)
 func GetId(n *meshv1.Node) uint32 {
 	return h.Hash(n.Target)
 }
 
+// Get the ID of a sample
+// Hash integer value of the concatenated From, To and Key field
 func GetSampleId(p *meshv1.Sample) uint32 {
 	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
 }
 
+// Setup the Logger
 func getLogger(debug bool, pprofAddress string) *zap.SugaredLogger {
 	if debug {
+		// starting pprof for memory and cpu analysis
 		go func() {
 			log.Println("Starting go debugging profiler pprof on port 6060")
 			http.ListenAndServe(pprofAddress+":6060", nil)
 		}()
 
+		// using debug logger
 		logger, err := zap.NewDevelopment()
 		if err != nil {
 			log.Fatalf("Could not start debug logging - error: %+v", err)
@@ -318,6 +370,7 @@ func getLogger(debug bool, pprofAddress string) *zap.SugaredLogger {
 		return logger.Sugar()
 	}
 
+	// using prod logger in non-debug mode
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("Could not start production logging - error: %+v", err)

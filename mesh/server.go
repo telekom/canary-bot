@@ -18,6 +18,7 @@ import (
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 )
 
+// Mesh server for incomming requests
 type MeshServer struct {
 	meshv1.UnimplementedMeshServiceServer
 	log  *zap.SugaredLogger
@@ -27,6 +28,7 @@ type MeshServer struct {
 	newNodeDiscovered chan NodeDiscovered
 }
 
+// RPC if node wants to join the mesh
 func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.JoinMeshResponse, error) {
 	s.log.Infow("New join mesh request", "node", req.Name)
 	// Check if name of joining node is unique in mesh, let join if state is not ok, let join if target is same
@@ -44,6 +46,7 @@ func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.Jo
 	return &res, nil
 }
 
+// PC if node pings
 func (s *MeshServer) Ping(ctx context.Context, req *meshv1.Node) (*emptypb.Empty, error) {
 	if req != nil {
 		s.data.SetNode(data.Convert(req, NODE_OK))
@@ -51,11 +54,13 @@ func (s *MeshServer) Ping(ctx context.Context, req *meshv1.Node) (*emptypb.Empty
 	return &emptypb.Empty{}, nil
 }
 
+// RPC if new node is discovered in the mesh
 func (s *MeshServer) NodeDiscovery(ctx context.Context, req *meshv1.NodeDiscoveryRequest) (*emptypb.Empty, error) {
 	s.newNodeDiscovered <- NodeDiscovered{req.NewNode, GetId(req.IAmNode)}
 	return &emptypb.Empty{}, nil
 }
 
+// RPC if samples will be sent by node in mesh
 func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emptypb.Empty, error) {
 	for _, sample := range req.Samples {
 		if sample.Ts > s.data.GetSampleTs(GetSampleId(sample)) {
@@ -72,10 +77,14 @@ func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emp
 	return &emptypb.Empty{}, nil
 }
 
+// PRC if node measures rount-trip-time
+// Do not add any functionality that will effect the RTT
 func (s *MeshServer) Rtt(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
 	return &emptypb.Empty{}, nil
 }
 
+// Start the mesh server.
+// Setup gRPC and TLS.
 func (m *Mesh) StartServer() error {
 	meshServer := &MeshServer{
 		log:               m.logger.Named("server"),
@@ -84,12 +93,15 @@ func (m *Mesh) StartServer() error {
 		newNodeDiscovered: m.newNodeDiscovered,
 	}
 
+	// gRPC debug mode for more logs
 	if m.setupConfig.DebugGrpc {
 		grpc_zap.ReplaceGrpcLoggerV2(meshServer.log.Named("grpc").Desugar())
 	}
 
+	// address the server will be bound to
 	listenAdd := m.setupConfig.ListenAddress + ":" + strconv.FormatInt(m.setupConfig.ListenPort, 10)
 
+	// start TCP listener
 	meshServer.log.Infow("Start listening", "address", listenAdd)
 	lis, err := net.Listen("tcp", listenAdd)
 	if err != nil {
@@ -114,6 +126,7 @@ func (m *Mesh) StartServer() error {
 		opts = append(opts, grpc.Creds(credentials.NewTLS(tlsCredentials)))
 	}
 
+	// register gRPC listener
 	grpcServer := grpc.NewServer(opts...)
 	meshv1.RegisterMeshServiceServer(grpcServer, meshServer)
 	reflection.Register(grpcServer)
