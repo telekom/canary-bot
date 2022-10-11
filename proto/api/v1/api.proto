@@ -20,7 +20,7 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
       email: "caas-request@telekom.de";
     };
     license: {
-      name: "xxx License";
+      name: "Apache 2.0 License";
       url: "https://gitlab.devops.telekom.de/caas/canary-bot/-/blob/main/LICENSE";
     };
   };

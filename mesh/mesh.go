@@ -6,7 +6,6 @@ import (
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"log"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"sync"
@@ -132,7 +131,6 @@ func (m *Mesh) timerRoutines() {
 			connected, isNameUniqueInMesh := m.Join(m.setupConfig.Targets)
 			if !isNameUniqueInMesh {
 				log.Fatal("The name is not unique in the mesh, please choose another one.")
-				// TODO generate random node name?
 			}
 			if connected {
 				log.Infow("Connected to a mesh")
@@ -142,14 +140,14 @@ func (m *Mesh) timerRoutines() {
 		case <-m.pingTicker.C:
 			log := m.logger.Named("ping-routine")
 			log.Debugw("Starting")
-			nodes := m.database.GetNodeListByState(NODE_OK)
-			if nodes == nil {
+
+			nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
+			if len(nodes) == 0 {
 				log.Debugw("No Node connected or all nodes in timeout")
 				break
 			}
 
-			// TODO GetRandomNodeListByState(NODE_OK, amountOfNodes) -> wie bei m.pushSampleTicker?
-			go m.retryPing(nodes[rand.Intn(len(nodes))].Convert())
+			go m.retryPing(nodes[0].Convert())
 
 		case <-m.pushSampleTicker.C:
 			log := m.logger.Named("sample-routine")
