@@ -5,7 +5,6 @@ import (
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
-	"math/rand"
 	"strconv"
 	"time"
 
@@ -225,13 +224,13 @@ func (m *Mesh) Rtt() {
 	var rttStartH, rttStart, rttEnd time.Time
 
 	// TODO switch to GetRandom...
-	nodes := m.database.GetNodeListByState(NODE_OK)
+	nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
 	if nodes == nil {
 		log.Debugw("No Node suitable for RTT measurement")
 		return
 	}
 	// select random node for RTT measurment
-	node := nodes[rand.Intn(len(nodes))]
+	node := nodes[0]
 	log.Debugw("Node selected", "node", node.Name)
 	// grpc logging
 	if m.setupConfig.DebugGrpc {
