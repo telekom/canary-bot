@@ -161,9 +161,9 @@ func (m *Mesh) timerRoutines() {
 				break
 			}
 
-			for broadcastCount := 0; broadcastCount < len(nodes); broadcastCount++ {
-				log.Debugw("Pushing samples", "node", nodes[broadcastCount].Name)
-				go m.retryPushSample(nodes[broadcastCount].Convert())
+			for _, node := range nodes {
+				log.Debugw("Pushing samples", "node", node.Name)
+				go m.retryPushSample(node.Convert())
 			}
 
 		case <-m.cleanSampleTicker.C:
@@ -215,36 +215,20 @@ func (m *Mesh) channelRoutines() {
 				m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
 				break
 			}
+
 			log.Info("Node joined - new node")
-
 			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.routineConfig.BroadcastToAmount)
-			// TODO: getRandomNodeListByStateWithoutNode --> wie bei SendSampleRoutine
-			// getRandomNodeListByState(STATE, AMOUNTX, opts...)
-			nodes := m.database.GetNodeListByState(NODE_OK)
 
-			// Remove node from list that sent the discovery request
-			for i, node := range nodes {
-				if node.Id == nodeDiscovered.From {
-					nodes[i] = nodes[len(nodes)-1]
-					nodes = nodes[:len(nodes)-1]
-				}
+			nodes := m.database.GetRandomNodeListByState(NODE_OK, m.routineConfig.BroadcastToAmount, nodeDiscovered.From)
+
+			if len(nodes) == 0 {
+				log.Debug("Stopping routine prematurely - no more known nodes")
+				break
 			}
 
-			for broadcastCount := 0; broadcastCount < m.routineConfig.BroadcastToAmount; broadcastCount++ {
-				if len(nodes) <= 0 {
-					log.Debug("Stopping routine prematurely - no more known nodes")
-					break
-				}
-				randomIndex := rand.Intn(len(nodes))
-				randomNode := nodes[randomIndex]
-
-				log.Infow("Sending Discovery Broadcast", "node", randomNode.Name)
-				go m.NodeDiscovery(randomNode.Convert(), nodeDiscovered.NewNode)
-
-				// Remove node already started broadcast to from list
-				nodes[randomIndex] = nodes[len(nodes)-1]
-				nodes = nodes[:len(nodes)-1]
-
+			for _, node := range nodes {
+				log.Infow("Sending Discovery Broadcast", "node", node.Name)
+				go m.NodeDiscovery(node.Convert(), nodeDiscovered.NewNode)
 			}
 
 			m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))

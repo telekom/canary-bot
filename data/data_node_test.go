@@ -106,12 +106,29 @@ func Test_shuffleNodes(t *testing.T) {
 
 	t.Errorf("Tried to shuffel nodes %v times. No effect.", maxTries)
 }
+
+func Test_removeNodeByIdFromSlice(t *testing.T) {
+	testId := nodes[3].Id
+
+	var nodesCopy []*Node
+	for _, node := range nodes {
+		nodesCopy = append(nodesCopy, node)
+	}
+	nodesCopy = removeNodeByIdFromSlice(nodesCopy, testId)
+	for _, node := range nodesCopy {
+		if node.Id == testId {
+			t.Errorf("Id is still in slice. ID: %+v", testId)
+		}
+	}
+}
+
 func Test_GetRandomNodeListByState(t *testing.T) {
 	tests := []struct {
 		name                  string
 		amountOfNodesInDb     int
 		amountOfRandomNodes   int
 		expectedAmountOfNodes int
+		expectedWithout       int
 	}{
 		{name: "no nodes in db - no requested", amountOfNodesInDb: 0, amountOfRandomNodes: 0, expectedAmountOfNodes: 0},
 		{name: "requested is higher than nodes in db - zero nodes in db", amountOfNodesInDb: 0, amountOfRandomNodes: 3, expectedAmountOfNodes: 0},
@@ -133,6 +150,12 @@ func Test_GetRandomNodeListByState(t *testing.T) {
 				t.Errorf("The amount of expected randome nodes is not right. Expected amount: %+v, result amount %+v", tt.expectedAmountOfNodes, len(result))
 			}
 
+			result = db.GetRandomNodeListByState(0, tt.amountOfRandomNodes, nodesSameState[0].Id)
+			for _, node := range result {
+				if node.Id == nodesSameState[0].Id {
+					t.Errorf("The 'without' node(s) are still present in random nodes array")
+				}
+			}
 		})
 	}
 }
