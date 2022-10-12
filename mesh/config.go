@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Configuration for the timer- and channelRoutines
 type RoutineConfiguration struct {
 	// Timeout for every grpc request
 	RequestTimeout time.Duration
@@ -16,12 +17,9 @@ type RoutineConfiguration struct {
 	JoinInterval time.Duration
 
 	// Ping config
-	PingInterval       time.Duration
-	PingRetryAmount    int
-	PingRetryDelay     time.Duration
-	TimeoutRetryPause  time.Duration
-	TimeoutRetryAmount int
-	TimeoutRetryDelay  time.Duration
+	PingInterval    time.Duration
+	PingRetryAmount int
+	PingRetryDelay  time.Duration
 
 	// Node discovery
 	BroadcastToAmount int
@@ -40,6 +38,7 @@ type RoutineConfiguration struct {
 	RttInterval time.Duration
 }
 
+// Configuration how the bot can connect to the mesh etc.
 type SetupConfiguration struct {
 	// remote target
 	Targets []string
@@ -70,6 +69,7 @@ type SetupConfiguration struct {
 	DebugGrpc bool
 }
 
+// Use standard configuration parameters for your production
 func StandardProductionRoutineConfig() *RoutineConfiguration {
 	return &RoutineConfiguration{
 		RequestTimeout:        time.Second * 3,
@@ -77,9 +77,6 @@ func StandardProductionRoutineConfig() *RoutineConfiguration {
 		PingInterval:          time.Second * 10,
 		PingRetryAmount:       3,
 		PingRetryDelay:        time.Second * 5,
-		TimeoutRetryPause:     time.Minute,
-		TimeoutRetryAmount:    3,
-		TimeoutRetryDelay:     time.Second * 30,
 		BroadcastToAmount:     2,
 		PushSampleInterval:    time.Second * 5,
 		PushSampleToAmount:    2,
@@ -92,6 +89,9 @@ func StandardProductionRoutineConfig() *RoutineConfiguration {
 	}
 }
 
+// Default setter method
+// - get external IP as listenAddress & joinAdress
+// - generate API token
 func (setupConfig *SetupConfiguration) setDefaults(logger *zap.SugaredLogger) {
 	// get IP of this node if no bind-address and/or domain set
 	externalIP, err := h.ExternalIP()
@@ -121,6 +121,8 @@ func (setupConfig *SetupConfiguration) setDefaults(logger *zap.SugaredLogger) {
 	}
 }
 
+// Check the default configuration to discover TLS mode.
+// Check if name and target(s) are set in config.
 func (setupConfig *SetupConfiguration) checkDefaults(logger *zap.SugaredLogger) {
 	// check TLS mode
 	if setupConfig.CaCert != nil || len(setupConfig.CaCertPath) > 0 {

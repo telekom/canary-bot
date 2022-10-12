@@ -5,7 +5,6 @@ import (
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"context"
-	"math/rand"
 	"strconv"
 	"time"
 
@@ -81,7 +80,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 	return true, true
 }
 
-func (m *Mesh) Ping(node *meshv1.Node) error {
+func (m *Mesh) ping(node *meshv1.Node) error {
 	log := m.logger.Named("ping-routine")
 	err := m.initClient(node)
 	if err != nil {
@@ -123,7 +122,7 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 	return
 }
 
-func (m *Mesh) PushSamples(node *meshv1.Node) error {
+func (m *Mesh) pushSamples(node *meshv1.Node) error {
 	log := m.logger.Named("sample-routine")
 	err := m.initClient(node)
 	if err != nil {
@@ -224,13 +223,13 @@ func (m *Mesh) Rtt() {
 	var opts []grpc.DialOption
 	var rttStartH, rttStart, rttEnd time.Time
 
-	nodes := m.database.GetNodeListByState(NODE_OK)
+	nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
 	if nodes == nil {
 		log.Debugw("No Node suitable for RTT measurement")
 		return
 	}
 	// select random node for RTT measurment
-	node := nodes[rand.Intn(len(nodes))]
+	node := nodes[0]
 	log.Debugw("Node selected", "node", node.Name)
 	// grpc logging
 	if m.setupConfig.DebugGrpc {

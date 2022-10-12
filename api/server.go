@@ -55,11 +55,11 @@ func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSa
 
 	for _, sample := range b.data.GetSampleList() {
 		samples = append(samples, &apiv1.Sample{
-			From:   sample.From,
-			To:     sample.To,
-			Sample: data.SampleName[sample.Key],
-			Value:  sample.Value,
-			Ts:     time.Unix(sample.Ts, 0).String(),
+			From:  sample.From,
+			To:    sample.To,
+			Type:  data.SampleName[sample.Key],
+			Value: sample.Value,
+			Ts:    time.Unix(sample.Ts, 0).String(),
 		})
 	}
 

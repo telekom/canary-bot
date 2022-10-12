@@ -1,6 +1,7 @@
 package data
 
 import (
+	"math/rand"
 	"time"
 )
 
@@ -114,5 +115,63 @@ func (db *Database) GetNodeListByState(byState int) []*Node {
 			nodes = append(nodes, obj.(*Node))
 		}
 	}
+	return nodes
+}
+
+// Get a specific amount of random nodes by state
+// Use a list of node ids (without) that should be removed from the list
+func (db *Database) GetRandomNodeListByState(byState int, amountOfNodes int, without ...uint32) []*Node {
+	nodes := db.GetNodeListByState(byState)
+
+	if len(nodes) == 0 {
+		return nodes
+	}
+
+	// remove "without" nodes from result list
+	for _, id := range without {
+		nodes = removeNodeByIdFromSlice(nodes, id)
+	}
+
+	if len(nodes) == 0 {
+		return nodes
+	}
+
+	// shuffel nodes array randomly
+	nodes = shuffleNodes(nodes)
+
+	// check if list is already smaller or equalt to requested amout
+	if len(nodes) <= amountOfNodes {
+		return nodes
+	}
+
+	return nodes[:amountOfNodes]
+}
+
+// shuffel a slice of nodes
+func shuffleNodes(nodes []*Node) []*Node {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(nodes), func(i, j int) {
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	})
+	return nodes
+}
+
+// Remove a node from a given slice by node.id
+func removeNodeByIdFromSlice(nodes []*Node, id uint32) []*Node {
+	rmIndex := 0
+
+	// get the index of node with node.id
+	for index, node := range nodes {
+		if node.Id == id {
+			rmIndex = index
+			break
+		}
+	}
+
+	// replacement
+	nodes[rmIndex] = nodes[len(nodes)-1]
+	nodes[len(nodes)-1] = nil
+	nodes = nodes[:len(nodes)-1]
+
 	return nodes
 }

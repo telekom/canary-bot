@@ -93,6 +93,73 @@ func Test_GetNode(t *testing.T) {
 		})
 	}
 }
+
+func Test_shuffleNodes(t *testing.T) {
+	maxTries := 20
+	firstId := nodes[0].Id
+	for i := 0; i < maxTries; i++ {
+		shuffeledNodes := shuffleNodes(nodes)
+		if shuffeledNodes[0].Id != firstId {
+			return
+		}
+	}
+
+	t.Errorf("Tried to shuffel nodes %v times. No effect.", maxTries)
+}
+
+func Test_removeNodeByIdFromSlice(t *testing.T) {
+	testId := nodes[3].Id
+
+	var nodesCopy []*Node
+	for _, node := range nodes {
+		nodesCopy = append(nodesCopy, node)
+	}
+	nodesCopy = removeNodeByIdFromSlice(nodesCopy, testId)
+	for _, node := range nodesCopy {
+		if node.Id == testId {
+			t.Errorf("Id is still in slice. ID: %+v", testId)
+		}
+	}
+}
+
+func Test_GetRandomNodeListByState(t *testing.T) {
+	tests := []struct {
+		name                  string
+		amountOfNodesInDb     int
+		amountOfRandomNodes   int
+		expectedAmountOfNodes int
+		expectedWithout       int
+	}{
+		{name: "no nodes in db - no requested", amountOfNodesInDb: 0, amountOfRandomNodes: 0, expectedAmountOfNodes: 0},
+		{name: "requested is higher than nodes in db - zero nodes in db", amountOfNodesInDb: 0, amountOfRandomNodes: 3, expectedAmountOfNodes: 0},
+		{name: "requested is higher than nodes in db", amountOfNodesInDb: 2, amountOfRandomNodes: 3, expectedAmountOfNodes: 2},
+		{name: "requested is less then amount of nodes in db", amountOfNodesInDb: 5, amountOfRandomNodes: 3, expectedAmountOfNodes: 3},
+		{name: "requested is same as amount of nodes in db", amountOfNodesInDb: 3, amountOfRandomNodes: 3, expectedAmountOfNodes: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, _ := NewMemDB(log)
+			for a := 0; a < tt.amountOfNodesInDb; a++ {
+				// fill db
+				db.SetNode(nodesSameState[a])
+			}
+
+			result := db.GetRandomNodeListByState(0, tt.amountOfRandomNodes)
+			if len(result) != tt.expectedAmountOfNodes {
+				t.Errorf("The amount of expected randome nodes is not right. Expected amount: %+v, result amount %+v", tt.expectedAmountOfNodes, len(result))
+			}
+
+			result = db.GetRandomNodeListByState(0, tt.amountOfRandomNodes, nodesSameState[0].Id)
+			for _, node := range result {
+				if node.Id == nodesSameState[0].Id {
+					t.Errorf("The 'without' node(s) are still present in random nodes array")
+				}
+			}
+		})
+	}
+}
+
 func Test_DeleteNode(t *testing.T) {
 	db, _ := NewMemDB(log)
 	for _, node := range nodes {
