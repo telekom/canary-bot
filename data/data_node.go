@@ -158,7 +158,7 @@ func shuffleNodes(nodes []*Node) []*Node {
 
 // Remove a node from a given slice by node.id
 func removeNodeByIdFromSlice(nodes []*Node, id uint32) []*Node {
-	rmIndex := 0
+	rmIndex := -1
 
 	// get the index of node with node.id
 	for index, node := range nodes {
@@ -169,9 +169,11 @@ func removeNodeByIdFromSlice(nodes []*Node, id uint32) []*Node {
 	}
 
 	// replacement
-	nodes[rmIndex] = nodes[len(nodes)-1]
-	nodes[len(nodes)-1] = nil
-	nodes = nodes[:len(nodes)-1]
+	if rmIndex != -1 {
+		nodes[rmIndex] = nodes[len(nodes)-1]
+		nodes[len(nodes)-1] = nil
+		nodes = nodes[:len(nodes)-1]
+	}
 
 	return nodes
 }
