@@ -18,86 +18,122 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// SampleServiceClient is the client API for SampleService service.
+// ApiServiceClient is the client API for ApiService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type SampleServiceClient interface {
+type ApiServiceClient interface {
 	ListSamples(ctx context.Context, in *ListSampleRequest, opts ...grpc.CallOption) (*ListSampleResponse, error)
+	ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error)
 }
 
-type sampleServiceClient struct {
+type apiServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewSampleServiceClient(cc grpc.ClientConnInterface) SampleServiceClient {
-	return &sampleServiceClient{cc}
+func NewApiServiceClient(cc grpc.ClientConnInterface) ApiServiceClient {
+	return &apiServiceClient{cc}
 }
 
-func (c *sampleServiceClient) ListSamples(ctx context.Context, in *ListSampleRequest, opts ...grpc.CallOption) (*ListSampleResponse, error) {
+func (c *apiServiceClient) ListSamples(ctx context.Context, in *ListSampleRequest, opts ...grpc.CallOption) (*ListSampleResponse, error) {
 	out := new(ListSampleResponse)
-	err := c.cc.Invoke(ctx, "/api.v1.SampleService/ListSamples", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/api.v1.ApiService/ListSamples", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// SampleServiceServer is the server API for SampleService service.
-// All implementations must embed UnimplementedSampleServiceServer
+func (c *apiServiceClient) ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error) {
+	out := new(ListNodesResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.ApiService/ListNodes", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ApiServiceServer is the server API for ApiService service.
+// All implementations must embed UnimplementedApiServiceServer
 // for forward compatibility
-type SampleServiceServer interface {
+type ApiServiceServer interface {
 	ListSamples(context.Context, *ListSampleRequest) (*ListSampleResponse, error)
-	mustEmbedUnimplementedSampleServiceServer()
+	ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error)
+	mustEmbedUnimplementedApiServiceServer()
 }
 
-// UnimplementedSampleServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedSampleServiceServer struct {
+// UnimplementedApiServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedApiServiceServer struct {
 }
 
-func (UnimplementedSampleServiceServer) ListSamples(context.Context, *ListSampleRequest) (*ListSampleResponse, error) {
+func (UnimplementedApiServiceServer) ListSamples(context.Context, *ListSampleRequest) (*ListSampleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListSamples not implemented")
 }
-func (UnimplementedSampleServiceServer) mustEmbedUnimplementedSampleServiceServer() {}
+func (UnimplementedApiServiceServer) ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListNodes not implemented")
+}
+func (UnimplementedApiServiceServer) mustEmbedUnimplementedApiServiceServer() {}
 
-// UnsafeSampleServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to SampleServiceServer will
+// UnsafeApiServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ApiServiceServer will
 // result in compilation errors.
-type UnsafeSampleServiceServer interface {
-	mustEmbedUnimplementedSampleServiceServer()
+type UnsafeApiServiceServer interface {
+	mustEmbedUnimplementedApiServiceServer()
 }
 
-func RegisterSampleServiceServer(s grpc.ServiceRegistrar, srv SampleServiceServer) {
-	s.RegisterService(&SampleService_ServiceDesc, srv)
+func RegisterApiServiceServer(s grpc.ServiceRegistrar, srv ApiServiceServer) {
+	s.RegisterService(&ApiService_ServiceDesc, srv)
 }
 
-func _SampleService_ListSamples_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ApiService_ListSamples_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListSampleRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SampleServiceServer).ListSamples(ctx, in)
+		return srv.(ApiServiceServer).ListSamples(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.v1.SampleService/ListSamples",
+		FullMethod: "/api.v1.ApiService/ListSamples",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SampleServiceServer).ListSamples(ctx, req.(*ListSampleRequest))
+		return srv.(ApiServiceServer).ListSamples(ctx, req.(*ListSampleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// SampleService_ServiceDesc is the grpc.ServiceDesc for SampleService service.
+func _ApiService_ListNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListNodesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApiServiceServer).ListNodes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.ApiService/ListNodes",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApiServiceServer).ListNodes(ctx, req.(*ListNodesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// ApiService_ServiceDesc is the grpc.ServiceDesc for ApiService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var SampleService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "api.v1.SampleService",
-	HandlerType: (*SampleServiceServer)(nil),
+var ApiService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "api.v1.ApiService",
+	HandlerType: (*ApiServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ListSamples",
-			Handler:    _SampleService_ListSamples_Handler,
+			Handler:    _ApiService_ListSamples_Handler,
+		},
+		{
+			MethodName: "ListNodes",
+			Handler:    _ApiService_ListNodes_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

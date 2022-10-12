@@ -1,22 +1,22 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Sample API",
-    "description": "API for the measurement samples by the canary-mesh",
-    "version": "1.1",
+    "title": "Canary API",
+    "description": "Get nodes and measurement samples from the canary-mesh",
+    "version": "1.2",
     "contact": {
       "name": "CaaS@TelIT",
       "url": "https://gitlab.devops.telekom.de/caas/canary-bot",
       "email": "caas-request@telekom.de"
     },
     "license": {
-      "name": "xxx License",
+      "name": "Apache 2.0 License",
       "url": "https://gitlab.devops.telekom.de/caas/canary-bot/-/blob/main/LICENSE"
     }
   },
   "tags": [
     {
-      "name": "SampleService"
+      "name": "ApiService"
     }
   ],
   "schemes": [
@@ -29,9 +29,31 @@
     "application/json"
   ],
   "paths": {
+    "/api/v1/nodes": {
+      "get": {
+        "operationId": "ApiService_ListNodes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListNodesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ApiService"
+        ]
+      }
+    },
     "/api/v1/samples": {
       "get": {
-        "operationId": "SampleService_ListSamples",
+        "operationId": "ApiService_ListSamples",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -47,7 +69,7 @@
           }
         },
         "tags": [
-          "SampleService"
+          "ApiService"
         ]
       }
     }
@@ -79,6 +101,19 @@
           }
         }
       }
+    },
+    "v1ListNodesResponse": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "list of node names"
+        }
+      },
+      "title": "response providing a list of known nodes in the mesh"
     },
     "v1ListSampleResponse": {
       "type": "object",

@@ -11,9 +11,9 @@ option go_package = "canary-bot/proto/api/v1;apiv1";
 
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   info: {
-    title: "Sample API";
-    version: "1.1";
-    description: "API for the measurement samples by the canary-mesh";
+    title: "Canary API";
+    version: "1.2";
+    description: "Get nodes and measurement samples from the canary-mesh";
     contact: {
       name: "CaaS@TelIT";
       url: "https://gitlab.devops.telekom.de/caas/canary-bot";
@@ -29,10 +29,16 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   produces: "application/json";
 };
 
-service SampleService {
+service ApiService {
   rpc ListSamples(ListSampleRequest) returns (ListSampleResponse) {
     option (google.api.http) = {
       get: "/api/v1/samples"
+    };
+  }
+
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/nodes"
     };
   }
 }
@@ -44,6 +50,15 @@ message ListSampleRequest {}
 message ListSampleResponse {
   // list of messured samples
   repeated Sample samples = 1;
+}
+
+// empty node request
+message ListNodesRequest {}
+
+// response providing a list of known nodes in the mesh
+message ListNodesResponse {
+  // list of node names
+  repeated string nodes = 1;
 }
 
 // a measurement sample

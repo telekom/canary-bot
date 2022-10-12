@@ -37,6 +37,7 @@ type Api struct {
 }
 
 type Configuration struct {
+	NodeName       string
 	Address        string
 	Port           int64
 	Tokens         []string
@@ -49,7 +50,7 @@ type Configuration struct {
 	CaCert         []byte
 }
 
-// ListUsers lists all users in the store.
+// List all measured samples
 func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
 	samples := []*apiv1.Sample{}
 
@@ -65,6 +66,19 @@ func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSa
 
 	return connect.NewResponse(&apiv1.ListSampleResponse{
 		Samples: samples,
+	}), nil
+}
+
+// List all known nodes in mesh
+func (b *Api) ListNodes(ctx context.Context, req *connect.Request[apiv1.ListNodesRequest]) (*connect.Response[apiv1.ListNodesResponse], error) {
+	nodes := []string{b.config.NodeName}
+
+	for _, node := range b.data.GetNodeList() {
+		nodes = append(nodes, node.Name)
+	}
+
+	return connect.NewResponse(&apiv1.ListNodesResponse{
+		Nodes: nodes,
 	}), nil
 }
 
@@ -138,7 +152,7 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 		}),
 	)
 
-	err = apiv1.RegisterSampleServiceHandler(context.Background(), gwmux, conn)
+	err = apiv1.RegisterApiServiceHandler(context.Background(), gwmux, conn)
 	if err != nil {
 		return fmt.Errorf("failed to register gateway: %w", err)
 	}
@@ -148,7 +162,7 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", getOpenAPIHandler())
-	mux.Handle(apiv1connect.NewSampleServiceHandler(a, interceptors))
+	mux.Handle(apiv1connect.NewApiServiceHandler(a, interceptors))
 	mux.Handle("/api/v1/", gwmux)
 	server := &http.Server{
 		Addr:    addr,

@@ -111,6 +111,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 
 	// start API
 	apiConfig := &api.Configuration{
+		NodeName:       setupConfig.Name,
 		Address:        setupConfig.ListenAddress,
 		Port:           setupConfig.ApiPort,
 		Tokens:         setupConfig.Tokens,
@@ -153,6 +154,7 @@ func (m *Mesh) timerRoutines() {
 	for {
 		select {
 		case <-joinTicker.C:
+			joinTicker.Stop()
 			log := m.logger.Named("join-routine")
 			// join (future) mesh
 			log.Infow("Waiting for a node to join a mesh...")
@@ -163,6 +165,8 @@ func (m *Mesh) timerRoutines() {
 			if connected {
 				log.Infow("Connected to a mesh")
 				m.quitJoinRoutine <- true
+			} else {
+				joinTicker.Reset(m.routineConfig.JoinInterval)
 			}
 
 		case <-m.pingTicker.C:

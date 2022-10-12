@@ -21,66 +21,88 @@ import (
 const _ = connect_go.IsAtLeastVersion0_1_0
 
 const (
-	// SampleServiceName is the fully-qualified name of the SampleService service.
-	SampleServiceName = "api.v1.SampleService"
+	// ApiServiceName is the fully-qualified name of the ApiService service.
+	ApiServiceName = "api.v1.ApiService"
 )
 
-// SampleServiceClient is a client for the api.v1.SampleService service.
-type SampleServiceClient interface {
+// ApiServiceClient is a client for the api.v1.ApiService service.
+type ApiServiceClient interface {
 	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error)
+	ListNodes(context.Context, *connect_go.Request[v1.ListNodesRequest]) (*connect_go.Response[v1.ListNodesResponse], error)
 }
 
-// NewSampleServiceClient constructs a client for the api.v1.SampleService service. By default, it
-// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// NewApiServiceClient constructs a client for the api.v1.ApiService service. By default, it uses
+// the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
 // uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
 // connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewSampleServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts ...connect_go.ClientOption) SampleServiceClient {
+func NewApiServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts ...connect_go.ClientOption) ApiServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	return &sampleServiceClient{
+	return &apiServiceClient{
 		listSamples: connect_go.NewClient[v1.ListSampleRequest, v1.ListSampleResponse](
 			httpClient,
-			baseURL+"/api.v1.SampleService/ListSamples",
+			baseURL+"/api.v1.ApiService/ListSamples",
+			opts...,
+		),
+		listNodes: connect_go.NewClient[v1.ListNodesRequest, v1.ListNodesResponse](
+			httpClient,
+			baseURL+"/api.v1.ApiService/ListNodes",
 			opts...,
 		),
 	}
 }
 
-// sampleServiceClient implements SampleServiceClient.
-type sampleServiceClient struct {
+// apiServiceClient implements ApiServiceClient.
+type apiServiceClient struct {
 	listSamples *connect_go.Client[v1.ListSampleRequest, v1.ListSampleResponse]
+	listNodes   *connect_go.Client[v1.ListNodesRequest, v1.ListNodesResponse]
 }
 
-// ListSamples calls api.v1.SampleService.ListSamples.
-func (c *sampleServiceClient) ListSamples(ctx context.Context, req *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error) {
+// ListSamples calls api.v1.ApiService.ListSamples.
+func (c *apiServiceClient) ListSamples(ctx context.Context, req *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error) {
 	return c.listSamples.CallUnary(ctx, req)
 }
 
-// SampleServiceHandler is an implementation of the api.v1.SampleService service.
-type SampleServiceHandler interface {
-	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error)
+// ListNodes calls api.v1.ApiService.ListNodes.
+func (c *apiServiceClient) ListNodes(ctx context.Context, req *connect_go.Request[v1.ListNodesRequest]) (*connect_go.Response[v1.ListNodesResponse], error) {
+	return c.listNodes.CallUnary(ctx, req)
 }
 
-// NewSampleServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
+// ApiServiceHandler is an implementation of the api.v1.ApiService service.
+type ApiServiceHandler interface {
+	ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error)
+	ListNodes(context.Context, *connect_go.Request[v1.ListNodesRequest]) (*connect_go.Response[v1.ListNodesResponse], error)
+}
+
+// NewApiServiceHandler builds an HTTP handler from the service implementation. It returns the path
+// on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewSampleServiceHandler(svc SampleServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
+func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
 	mux := http.NewServeMux()
-	mux.Handle("/api.v1.SampleService/ListSamples", connect_go.NewUnaryHandler(
-		"/api.v1.SampleService/ListSamples",
+	mux.Handle("/api.v1.ApiService/ListSamples", connect_go.NewUnaryHandler(
+		"/api.v1.ApiService/ListSamples",
 		svc.ListSamples,
 		opts...,
 	))
-	return "/api.v1.SampleService/", mux
+	mux.Handle("/api.v1.ApiService/ListNodes", connect_go.NewUnaryHandler(
+		"/api.v1.ApiService/ListNodes",
+		svc.ListNodes,
+		opts...,
+	))
+	return "/api.v1.ApiService/", mux
 }
 
-// UnimplementedSampleServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedSampleServiceHandler struct{}
+// UnimplementedApiServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedApiServiceHandler struct{}
 
-func (UnimplementedSampleServiceHandler) ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("api.v1.SampleService.ListSamples is not implemented"))
+func (UnimplementedApiServiceHandler) ListSamples(context.Context, *connect_go.Request[v1.ListSampleRequest]) (*connect_go.Response[v1.ListSampleResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("api.v1.ApiService.ListSamples is not implemented"))
+}
+
+func (UnimplementedApiServiceHandler) ListNodes(context.Context, *connect_go.Request[v1.ListNodesRequest]) (*connect_go.Response[v1.ListNodesResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("api.v1.ApiService.ListNodes is not implemented"))
 }
