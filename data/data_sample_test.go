@@ -120,8 +120,8 @@ func Test_SetSampleTsNow(t *testing.T) {
 	tsAfter := time.Now().Unix()
 	nodes_result := db.GetNodeList()
 	for _, node := range nodes_result {
-		if node.LastSampleTs <= tsBefore || node.LastSampleTs >= tsAfter {
-			t.Errorf("timestamp not correct (currently: %v), should be between %v and %v", node.LastSampleTs, tsBefore, tsAfter)
+		if node.StateChangeTs <= tsBefore || node.StateChangeTs >= tsAfter {
+			t.Errorf("timestamp not correct (currently: %v), should be between %v and %v", node.StateChangeTs, tsBefore, tsAfter)
 		}
 	}
 	if len(nodes_result) == 0 {

@@ -84,7 +84,10 @@ func init() {
 		CaCertPath:     []string{},
 		CaCert:         nil,
 		Tokens:         []string{},
+		CleanupNodes:   false,
+		CleanupSamples: false,
 		Debug:          false,
+		DebugGrpc:      false,
 	}
 
 	// Targets for joining
@@ -111,6 +114,10 @@ func init() {
 
 	// Auth API
 	cmd.Flags().StringSliceVar(&set.Tokens, "token", defaults.Targets, "Comma-seperated or multi-flag list of tokens to protect the sample data API. (optional)")
+
+	// Cleanup database mode
+	cmd.Flags().BoolVar(&set.CleanupNodes, "cleanup-nodes", defaults.CleanupNodes, "Enable cleanup mode for nodes (default disabled)")
+	cmd.Flags().BoolVar(&set.CleanupSamples, "cleanup-samples", defaults.CleanupSamples, "Enable cleanup mode for measurment samples (default disabled)")
 
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")

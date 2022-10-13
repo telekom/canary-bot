@@ -4,6 +4,7 @@ import (
 	h "canary-bot/helper"
 	meshv1 "canary-bot/proto/mesh/v1"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	"go.uber.org/zap"
@@ -41,11 +42,11 @@ type Database struct {
 // a new sample gets measured. Is used by
 // the clean up routine.
 type Node struct {
-	Id           uint32
-	Name         string
-	Target       string
-	State        int
-	LastSampleTs int64
+	Id            uint32
+	Name          string
+	Target        string
+	State         int
+	StateChangeTs int64
 }
 
 // A sample represents a measurement
@@ -93,11 +94,11 @@ func NewMemDB(logger *zap.SugaredLogger) (Database, error) {
 						Unique:  false,
 						Indexer: &memdb.IntFieldIndex{Field: "State"},
 					},
-					"lastSampleTs": {
-						Name:         "lastSampleTs",
+					"stateChangeTs": {
+						Name:         "stateChangeTs",
 						Unique:       false,
 						AllowMissing: true,
-						Indexer:      &memdb.IntFieldIndex{Field: "LastSampleTs"},
+						Indexer:      &memdb.IntFieldIndex{Field: "StateChangeTs"},
 					},
 				},
 			},
@@ -161,11 +162,11 @@ func (n *Node) Convert() *meshv1.Node {
 // with a given state of the node
 func Convert(n *meshv1.Node, state int) *Node {
 	return &Node{
-		Id:           h.Hash(n.Target),
-		Name:         n.Name,
-		Target:       n.Target,
-		State:        state,
-		LastSampleTs: 0,
+		Id:            h.Hash(n.Target),
+		Name:          n.Name,
+		Target:        n.Target,
+		State:         state,
+		StateChangeTs: time.Now().Unix(),
 	}
 }
 

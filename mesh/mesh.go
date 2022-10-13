@@ -33,9 +33,9 @@ type Mesh struct {
 	newNodeDiscovered chan NodeDiscovered
 
 	// timerRoutine main functionality timers
-	pingTicker        *time.Ticker
-	pushSampleTicker  *time.Ticker
-	cleanSampleTicker *time.Ticker
+	pingTicker       *time.Ticker
+	pushSampleTicker *time.Ticker
+	cleanupTicker    *time.Ticker
 
 	// timerRoutine sample measurement timers
 	rttTicker *time.Ticker
@@ -144,8 +144,8 @@ func (m *Mesh) timerRoutines() {
 	m.pushSampleTicker = time.NewTicker(m.routineConfig.PushSampleInterval)
 	m.pushSampleTicker.Stop()
 	// Timer to clean sampels from removed nodes
-	m.cleanSampleTicker = time.NewTicker(m.routineConfig.CleanSampleInterval)
-	m.cleanSampleTicker.Stop()
+	m.cleanupTicker = time.NewTicker(m.routineConfig.CleanupInterval)
+	m.cleanupTicker.Stop()
 
 	// Sample measurement: RTT
 	m.rttTicker = time.NewTicker(m.routineConfig.RttInterval)
@@ -200,12 +200,23 @@ func (m *Mesh) timerRoutines() {
 				go m.retryPushSample(node.Convert())
 			}
 
-		case <-m.cleanSampleTicker.C:
-			// check if sample is too old and delete
-			for _, sample := range m.database.GetSampleList() {
-				if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.routineConfig.SampleMaxAge)) {
-					m.logger.Infow("Delete old sample", "from", sample.From, "to", sample.To, "key", data.SampleName[sample.Key], "maxAge", m.routineConfig.SampleMaxAge.String())
-					m.database.DeleteSample(sample.Id)
+		case <-m.cleanupTicker.C:
+			// check if node is timed-out and over maxAge
+			if m.setupConfig.CleanupNodes {
+				for _, node := range m.database.GetNodeListByState(NODE_DEAD) {
+					if time.Unix(node.StateChangeTs, 0).Before(time.Now().Add(-1 * m.routineConfig.CleanupMaxAge)) {
+						m.logger.Infow("Delete old node", "node", node.Name, "maxAge", m.routineConfig.CleanupMaxAge.String())
+					}
+				}
+			}
+
+			// check if sample is over maxAge
+			if m.setupConfig.CleanupSamples {
+				for _, sample := range m.database.GetSampleList() {
+					if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.routineConfig.CleanupMaxAge)) {
+						m.logger.Infow("Delete old sample", "from", sample.From, "to", sample.To, "key", data.SampleName[sample.Key], "maxAge", m.routineConfig.CleanupMaxAge.String())
+						m.database.DeleteSample(sample.Id)
+					}
 				}
 			}
 
@@ -220,7 +231,7 @@ func (m *Mesh) timerRoutines() {
 
 			m.pingTicker.Stop()
 			m.pushSampleTicker.Stop()
-			m.cleanSampleTicker.Stop()
+			m.cleanupTicker.Stop()
 			m.rttTicker.Stop()
 			m.logger.Debug("Start joinRoutine again, stopping all timer routines")
 		case <-m.quitJoinRoutine:
@@ -229,7 +240,7 @@ func (m *Mesh) timerRoutines() {
 			// starting ticker after joinRoutine
 			m.pingTicker.Reset(m.routineConfig.PingInterval)
 			m.pushSampleTicker.Reset(m.routineConfig.PushSampleInterval)
-			m.cleanSampleTicker.Reset(m.routineConfig.CleanSampleInterval)
+			m.cleanupTicker.Reset(m.routineConfig.CleanupInterval)
 			m.rttTicker.Reset(m.routineConfig.RttInterval)
 			m.logger.Info("Starting pings")
 			m.logger.Debug("Stop joinRoutine, starting all timer routines")
@@ -302,6 +313,8 @@ func (m *Mesh) retryPing(node *meshv1.Node) {
 		if r != m.routineConfig.PingRetryAmount {
 			// Retry delay
 			time.Sleep(m.routineConfig.PingRetryDelay)
+		} else {
+			m.database.SetNode(data.Convert(node, NODE_DEAD))
 		}
 	}
 

@@ -31,7 +31,7 @@ func (db *Database) SetNodeTsNow(id uint32) {
 		return
 	}
 
-	node.LastSampleTs = time.Now().Unix()
+	node.StateChangeTs = time.Now().Unix()
 	err := txn.Insert("node", &node)
 	if err != nil {
 		panic(err)

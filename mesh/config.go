@@ -30,9 +30,9 @@ type RoutineConfiguration struct {
 	PushSampleRetryAmount int
 	PushSampleRetryDelay  time.Duration
 
-	// Clean samples
-	CleanSampleInterval time.Duration
-	SampleMaxAge        time.Duration
+	// Clean nodes & samples
+	CleanupInterval time.Duration
+	CleanupMaxAge   time.Duration
 
 	// Sample: RTT
 	RttInterval time.Duration
@@ -64,6 +64,10 @@ type SetupConfiguration struct {
 	//Auth API
 	Tokens []string
 
+	// Clean nodes & samples
+	CleanupNodes   bool
+	CleanupSamples bool
+
 	//Logging
 	Debug     bool
 	DebugGrpc bool
@@ -82,8 +86,8 @@ func StandardProductionRoutineConfig() *RoutineConfiguration {
 		PushSampleToAmount:    2,
 		PushSampleRetryAmount: 2,
 		PushSampleRetryDelay:  time.Second * 10,
-		CleanSampleInterval:   time.Minute,
-		SampleMaxAge:          time.Hour * 24,
+		CleanupInterval:       time.Minute,
+		CleanupMaxAge:         time.Hour * 24,
 
 		RttInterval: time.Second * 3,
 	}
