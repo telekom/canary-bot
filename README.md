@@ -1,19 +1,56 @@
-# Mesh
+# Canary Bot
 
-![the mesh](mesh.drawio.png)
+HTTP-based (gRPC) connectivity monitoring from node to node.
+
+Run one Canary Bot on each distributed host to create a mesh.
+
+Each bot will gather information about the connectivity to eachother.
+
+Current measurment samples:
+
+- Round-trip-time with TCP, TLS handshake and request
+- Round-trip-time TCP request
+
+Every bot exposes an API (REST and RPC) for consuming measurment samples.
+
+Each bot will provide samples from every node.
+
+# Get your Canary
+
+Get the latest release from the [release page](https://gitlab.devops.telekom.de/caas/canary-bot/-/releases).
+
+## Binary
+
+Download the binary from GitLab.
+For authorization use e.g. a [personal token](https://docs.gitlab.com/ee/api/#authentication).
+
+````
+curl -c https://gitlab.devops.telekom.de/api/v4/projects/124625/packages/generic/cbot/${VERSION}/cbot
+````
+
+## Image
+
+Get the latest image from the MTR.
+
+````
+docker image pull mtr.devops.telekom.de/caas/canary-bot:latest
+docker image pull mtr.devops.telekom.de/caas/canary-bot:${VERSION}
+````
+
+
 
 # Usage
 
 Run `cbot --help` for futher information.
 
-## the network
+## The Network
 
-To separate different szenarios like starting the bot on a dedicated host or e.g. a Kubernetes cluster we introduced the `join-address` and `listen-address` flag.
+To separate different szenarios like starting the bot on a dedicated host or running it on a Kubernetes cluster we introduced the `join-address` and `listen-address` flag.
 
-JoinMesh Request to tell the joining mesh who I am - the public connection point:
+JoinMesh Request to tell the joining mesh 'who I am' - the public connection point:
 `join-address` (optional; eg. test.de:443, localhost:8080) > external IP (form network interface)
 
-Listen server address & port - the real listening settings of the grpc server:
+Listen server address & port - the listening settings for the grpc server:
 `listen-address` (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)
 
 ### 1. Szenario: Kubernetes cluster
@@ -33,11 +70,10 @@ cbot --name owl --join-address bird-owl.com:443 --listen-adress localhost --list
 The bot is running on a public ip (x.x.x.x) and listens on port 8081 for mesh requests.
 
 ```
-cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn 
+cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn
 ```
 
 ## TLS
-
 
 1. No TLS
 
@@ -45,22 +81,28 @@ cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path pat
 
 2. edge terminated TLS
 
-- eg. in a Kubenetes Cluster with NGINX Ingress Controller
+E.g. in a Kubenetes Cluster with NGINX Ingress Controller
+
 - Client: needs CA Cert
 - Server: nothing todo, TLS is terminated before reaching server
 - use: `ca-cert` flag
 
-2. e2e Mutal TLS
+3. e2e Mutal TLS
 
 - Client: needs CA Cert
 - Server: needs Server Cert & Server Key
 - use: `ca-cert`, `server-cert`, `server-key` flags
 
+# Mesh
+
+![the mesh](mesh.drawio.png)
+
+
 # Logic
 
-Have a deeper look at the canary logic [here](logic.md)
+(comming soon [here](logic.md))
 
 # Dev
 
-(comming soon)
+(comming soon [here](dev.md))
 
