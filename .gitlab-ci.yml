@@ -29,6 +29,11 @@ binary_build:
     key: $CI_COMMIT_REF_SLUG
     paths:
       - ${BINARY_PATH}
+  rules:
+    - changes:
+        - "**/*.go"
+        - "**/go.mod"
+        - "Dockerfile"
 
 upload_binary:
   stage: push
