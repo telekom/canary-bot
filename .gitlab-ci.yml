@@ -11,29 +11,13 @@ variables:
 stages:
   - test
   - build
+  - scan
   - push
-  - container_scan
   - release
 
 include:
   - project: caas/cicd_templates
-    file: code_security_scan.yml
-  - project: caas/microservice_cicd
-    file: container_scan.yml
-
-go-test:
-  stage: test
-  image: dockerhub.devops.telekom.de/golang:1.18
-  script:
-    - go get gotest.tools/gotestsum
-    - go install gotest.tools/gotestsum
-    - gotestsum --junitfile report.xml --format standard-verbose -- -coverprofile=cover.out -coverpkg=./... ./...
-    - go tool cover -func cover.out | grep total | awk '{print "total-coverage "$3" of statements"}'
-  artifacts:
-    when: always
-    reports:
-      junit: report.xml
-  coverage: '/total-coverage \d+.\d+% of statements/'
+    file: ci_general.yml
 
 binary_build:
   stage: build
@@ -45,41 +29,6 @@ binary_build:
     key: $CI_COMMIT_REF_SLUG
     paths:
       - ${BINARY_PATH}
-
-build_push_image:
-  stage: push
-  tags:
-    - otc_run_docker_k8s
-  image:
-    name: artifactory.devops.telekom.de/gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  cache:
-    key: $CI_COMMIT_REF_SLUG
-    paths:
-      - ${BINARY_PATH}
-  script:
-    - export DOCKERFILE_LOCATION=$(find . -name Dockerfile -print -quit)
-    - export PRIVATE_GO_SERVER=$(echo ${CI_SERVER_URL} | sed 's/https:\/\///g')
-    - |
-      KANIKO_PARAMS="--registry-mirror dockerhub.devops.telekom.de
-                     --context ${CI_PROJECT_DIR}
-                     --destination ${IMAGE_REPOSITORY}:latest
-                     --destination ${IMAGE_REPOSITORY}:${CI_PIPELINE_ID}
-                     --build-arg http_proxy=${http_proxy}
-                     --build-arg https_proxy=${https_proxy}
-                     --build-arg no_proxy=${no_proxy}
-                     --build-arg CI_USER=gitlab-ci-token
-                     --build-arg CI_JOB_TOKEN=${CI_JOB_TOKEN}
-                     --build-arg PRIVATE_GO_SERVER=${PRIVATE_GO_SERVER}
-                     --build-arg DOCKER_BUILD_ENVIRONMENT=${DOCKER_BUILD_ENVIRONMENT}
-                     --dockerfile ${DOCKERFILE_LOCATION}"
-      if test "${CI_COMMIT_REF_PROTECTED}" != 'true'; then
-        KANIKO_PARAMS="${KANIKO_PARAMS} --no-push"
-      fi
-      if test "${CI_COMMIT_TAG}" != ""; then
-        KANIKO_PARAMS="${KANIKO_PARAMS} --destination ${IMAGE_REPOSITORY}:${CI_COMMIT_TAG}"
-      fi
-      echo "${KANIKO_PARAMS}" | xargs /kaniko/executor
 
 upload_binary:
   stage: push
