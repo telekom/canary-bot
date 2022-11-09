@@ -1,0 +1,158 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Canary API",
+    "description": "Get nodes and measurement samples from the canary-mesh",
+    "version": "1.0",
+    "contact": {
+      "name": "Schubert, Maximilian",
+      "url": "https://github.com/telekom/canary-bot",
+      "email": "maximilian.schubert@telekom.de"
+    },
+    "license": {
+      "name": "Apache 2.0 License",
+      "url": "https://github.com/telekom/canary-bot/blob/main/LICENSE"
+    }
+  },
+  "tags": [
+    {
+      "name": "ApiService"
+    }
+  ],
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/nodes": {
+      "get": {
+        "operationId": "ApiService_ListNodes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListNodesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ApiService"
+        ]
+      }
+    },
+    "/api/v1/samples": {
+      "get": {
+        "operationId": "ApiService_ListSamples",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSampleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ApiService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListNodesResponse": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "list of node names"
+        }
+      },
+      "title": "response providing a list of known nodes in the mesh"
+    },
+    "v1ListSampleResponse": {
+      "type": "object",
+      "properties": {
+        "samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Sample"
+          },
+          "title": "list of messured samples"
+        }
+      },
+      "title": "response providing a list of measurement samples"
+    },
+    "v1Sample": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "title": "by whom the sample was messured"
+        },
+        "to": {
+          "type": "string",
+          "title": "to whom the sample was messured"
+        },
+        "type": {
+          "type": "string",
+          "title": "the sample name"
+        },
+        "value": {
+          "type": "string",
+          "title": "the sample value"
+        },
+        "ts": {
+          "type": "string",
+          "title": "when the sample was messured"
+        }
+      },
+      "title": "a measurement sample"
+    }
+  }
+}

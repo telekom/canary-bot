@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package api.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/telekom/canary-bot/proto/api/v1;apiv1";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Canary API";
+    version: "1.0";
+    description: "Get nodes and measurement samples from the canary-mesh";
+    contact: {
+      name: "Schubert, Maximilian";
+      url: "https://github.com/telekom/canary-bot";
+      email: "maximilian.schubert@telekom.de";
+    };
+    license: {
+      name: "Apache 2.0 License";
+      url: "https://github.com/telekom/canary-bot/blob/main/LICENSE";
+    };
+  };
+  schemes: HTTPS;
+  consumes: "application/json";
+  produces: "application/json";
+};
+
+service ApiService {
+  rpc ListSamples(ListSampleRequest) returns (ListSampleResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/samples"
+    };
+  }
+
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/nodes"
+    };
+  }
+}
+
+// empty sample request
+message ListSampleRequest {}
+
+// response providing a list of measurement samples
+message ListSampleResponse {
+  // list of messured samples
+  repeated Sample samples = 1;
+}
+
+// empty node request
+message ListNodesRequest {}
+
+// response providing a list of known nodes in the mesh
+message ListNodesResponse {
+  // list of node names
+  repeated string nodes = 1;
+}
+
+// a measurement sample
+message Sample {
+  // by whom the sample was messured
+  string from = 1;
+  // to whom the sample was messured
+  string to = 2;
+  // the sample name
+  string type = 3;
+  // the sample value
+  string value = 4;
+  // when the sample was messured
+  string ts = 5;
+}
