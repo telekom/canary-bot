@@ -41,24 +41,24 @@ Run the following cmd on your different dedicated hosts:
 
 ``` bash
 # first host
-cbot --name swan --target bird-goose.com:443 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn --join-address bird-swan.com:443 --listen-port 443
+canary-bot --name swan --target bird-goose.com:443 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn --join-address bird-swan.com:443 --listen-port 443
 
 # ...
 
 # second host
-cbot --name goose --target bird-swan.com:443 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn --join-address bird-goose.com:443 --listen-port 443
+canary-bot --name goose --target bird-swan.com:443 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn --join-address bird-goose.com:443 --listen-port 443
 ```
 
 Or try it on your localhost:
 
 ``` bash
-cbot --name eagle --target localhost:8082 --join-address localhost:8080 \
+canary-bot --name eagle --target localhost:8082 --join-address localhost:8080 \
      --listen-address localhost --listen-port 8080 \
      --api-port 8081
 
 # ...
 
-cbot --name duck --target localhost:8080 --join-address localhost:8082 \
+canary-bot --name duck --target localhost:8080 --join-address localhost:8082 \
      --listen-address localhost --listen-port 8082 \
      --api-port 8083
 ```
