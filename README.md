@@ -134,7 +134,7 @@ Canary Bot: A single instance running on a dedicated system
 Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot manages its own mesh instance, knowing about the bots that are accessible by itself.
 
 
-### Canary Mesh statup
+### Canary Mesh startup
 
 ![Canary Mesh](mesh.drawio.png)
 
