@@ -20,7 +20,7 @@ Measurement of network status information of distributed systems in an HTTP-base
 
 ## About this component
 
-The Canary Bot is an HTTP-based (gRPC) connectivity monitoring from node to node. Place one Canary Bot on each distributed host to create a mesh. Each bot will gather information about the network connectivity to each other.
+The Canary Bot is an HTTP-based (gRPC) communication executable measuring network data from node to node (Bot to Bot). Place one Canary Bot on each distributed host to create a mesh. Each bot will gather information about the network connectivity to each other.
 
 
 Every bot exposes an API (REST and gRPC) for consuming measurement samples.
