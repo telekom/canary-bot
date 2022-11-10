@@ -22,12 +22,11 @@ Measurement of network status information of distributed systems in an HTTP-base
 
 The Canary Bot is an HTTP-based (gRPC) communication executable measuring network data from node to node (Bot to Bot). Place one Canary Bot on each distributed host to create a mesh. Each bot will gather information about the network connectivity to each other.
 
-
 Every bot exposes an API (REST and gRPC) for consuming measurement samples.
 Each bot in the mesh provides measurement samples from every node.
 
-
 Current measurement samples:
+
 - Round-trip-time with TCP, TLS handshake and request
 - Round-trip-time TCP request
 
@@ -51,7 +50,7 @@ canary-bot --name goose --target bird-swan.com:443 --ca-cert-path path/to/cert.c
 
 Or try it on your localhost:
 
-``` bash
+```bash
 canary-bot --name eagle --target localhost:8082 --join-address localhost:8080 \
      --listen-address localhost --listen-port 8080 \
      --api-port 8081
@@ -64,56 +63,49 @@ canary-bot --name duck --target localhost:8080 --join-address localhost:8082 \
 ```
 
 ### Binaries, Docker
-<*comming soon*>
+
+<*coming soon*>
 
 ## Development
 
-The project is devided into multiple modules you can use seperatly.
+The project is divided into multiple modules you can use separately.
 
 Use the main package to run the canary-bot out of the box. The package provides a default setup, can be built as a binary and run with configuration options define by CLI flags. Have a look at the [Installation](#installation)
-
-
 
 Use the `mesh` module (`mesh/mesh.go`) to get your own canary-bot configuration running.
 
 To create a Canary Bot use the `mesh.CreateCanaryMesh(/*RoutineConfiguration*/, /*SetupConfiguration*/)` and pass 2 different configurations.
 
-
-
- 1. RoutineConfiguration (`mesh/config.go@RoutineConfiguration`):
+### 1. Routine Configuration (`mesh/config.go@RoutineConfiguration`)
 
 We provide a Standard Production Routine Configuration that is used by the default Canary-Bot.
 
 ```go
 func StandardProductionRoutineConfig() *RoutineConfiguration {
-	return &RoutineConfiguration{
-		RequestTimeout:        time.Second * 3,
-		JoinInterval:          time.Second * 3,
-		PingInterval:          time.Second * 10,
-		PingRetryAmount:       3,
-		PingRetryDelay:        time.Second * 5,
-		BroadcastToAmount:     2,
-		PushSampleInterval:    time.Second * 5,
-		PushSampleToAmount:    2,
-		PushSampleRetryAmount: 2,
-		PushSampleRetryDelay:  time.Second * 10,
-		CleanupInterval:       time.Minute,
-		CleanupMaxAge:         time.Hour * 24,
+ return &RoutineConfiguration{
+  RequestTimeout:        time.Second * 3,
+  JoinInterval:          time.Second * 3,
+  PingInterval:          time.Second * 10,
+  PingRetryAmount:       3,
+  PingRetryDelay:        time.Second * 5,
+  BroadcastToAmount:     2,
+  PushSampleInterval:    time.Second * 5,
+  PushSampleToAmount:    2,
+  PushSampleRetryAmount: 2,
+  PushSampleRetryDelay:  time.Second * 10,
+  CleanupInterval:       time.Minute,
+  CleanupMaxAge:         time.Hour * 24,
 
-		RttInterval: time.Second * 3,
-	}
+  RttInterval: time.Second * 3,
+ }
 }
 ```
 
-Have look at the struct `RoutineConfiguration` and the func `StandardProductionRoutineConfig` for detailed information.
-Please chekout the documentation below.
+Have look at the struct `RoutineConfiguration` and the func `StandardProductionRoutineConfig` for detailed information. Please checkout the [documentation](#documentation) below. below.
 
+### 2. SetupConfiguration (`mesh/config.go@SetupConfiguration`)
 
-
- 2. SetupConfiguration (`mesh/config.go@SetupConfiguration`):
-
-Have look at the struct for detailed information. Please checkout the documentation below.
-
+Have look at the struct for detailed information. Please checkout the [documentation](#documentation) below.
 
 ## Code of Conduct
 
@@ -121,18 +113,17 @@ This project has adopted the [Contributor Covenant](https://www.contributor-cove
 
 ## Working Language
 
-We decided to apply _English_ as the primary project language.
+We decided to apply *English* as the primary project language.
 
 Consequently, all content will be made available primarily in English. We also ask all interested people to use English as language to create issues, in their code (comments, documentation etc.) and when you send requests to us. The application itself and all end-user facing content will be made available in other languages as needed.
 
 ## Documentation
 
-### Terms & Definitions 
+### Terms & Definitions
 
 Canary Bot: A single instance running on a dedicated system
 
 Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot manages its own mesh instance, knowing about the bots that are accessible by itself.
-
 
 ### Canary Mesh startup
 
@@ -142,53 +133,49 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
 
 Use the offered CLI options or use environment variables with a 'MESH' prefix e.g. Flag: `listen-address` -> Env: `MESH_LISTEN_ADDRESS`
 
-| Flag | Manda-tory | Multi-use | Desc | Defaults |
-|------|--------|--------|------|-------|
-| target | x | x | Comma-seperated or multi-flag list of targets for joining the mesh. Format: IP:PORT or ADDRESS:PORT | - |
-| name | x | | Name of the node, has to be unique in mesh | - |
-| listen-address | | | Address or IP the server of the node will bind to; eg. 0.0.0.0, localhost | outbound IP of the network interface |
-| listen-port | | | Listening port of this node | 8081 |
-| join-address | | | Address of this node; nodes in the mesh will use the domain to connect; eg. test.de, localhost | outbound IP of the network interface |
-| api-port | | | API port of this node | 8080 |
-| server-cert-path | | x | Path to the server cert file e.g. cert/server-cert.pem - use with server-key-path to enable TLS | - |
-| server-key-path | | | Path to the server key file e.g. cert/server-key.pem - use with server-cert-path to enable TLS | - |
-| server-cert | | | Base64 encoded server cert, use with server-key to enable TLS | - |
-| server-key | | | Base64 encoded server key, use with server-cert to enable TLS | - |
-| ca-cert-path | | | Path to ca cert file/s to enable TLS | - |
-| ca-cert | | | Base64 encoded ca cert to enable TLS, support for multiple ca certs by ca-cert-path flag | - |
-| token | | x | Comma-seperated or multi-flag list of tokens to protect the sample data API. | will be generated and print to stdout |
-| cleanup-nodes | | | Enable cleanup mode for nodes | false |
-| cleanup-samples | | | Enable cleanup mode for measurment samples | false |
-| debug | | | Set logging to debug mode | false |
-| debug-grpc | | | Enable more logging for grpc | false |
-
+| Flag             | Mandatory | Multi-use | Desc                                                                                                | Defaults                              |
+| ---------------- | --------- | --------- | --------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| target           | x         | x         | Comma-separated or multi-flag list of targets for joining the mesh. Format: IP:PORT or ADDRESS:PORT | -                                     |
+| name             | x         |           | Name of the node, has to be unique in mesh                                                          | -                                     |
+| listen-address   |           |           | Address or IP the server of the node will bind to; eg. 0.0.0.0, localhost                           | outbound IP of the network interface  |
+| listen-port      |           |           | Listening port of this node                                                                         | 8081                                  |
+| join-address     |           |           | Address of this node; nodes in the mesh will use the domain to connect; eg. test.de, localhost      | outbound IP of the network interface  |
+| api-port         |           |           | API port of this node                                                                               | 8080                                  |
+| server-cert-path |           | x         | Path to the server cert file e.g. cert/server-cert.pem - use with server-key-path to enable TLS     | -                                     |
+| server-key-path  |           |           | Path to the server key file e.g. cert/server-key.pem - use with server-cert-path to enable TLS      | -                                     |
+| server-cert      |           |           | Base64 encoded server cert, use with server-key to enable TLS                                       | -                                     |
+| server-key       |           |           | Base64 encoded server key, use with server-cert to enable TLS                                       | -                                     |
+| ca-cert-path     |           |           | Path to ca cert file/s to enable TLS                                                                | -                                     |
+| ca-cert          |           |           | Base64 encoded ca cert to enable TLS, support for multiple ca certs by ca-cert-path flag            | -                                     |
+| token            |           | x         | Comma-separated or multi-flag list of tokens to protect the sample data API.                        | will be generated and print to stdout |
+| cleanup-nodes    |           |           | Enable cleanup mode for nodes                                                                       | false                                 |
+| cleanup-samples  |           |           | Enable cleanup mode for measurement samples                                                         | false                                 |
+| debug            |           |           | Set logging to debug mode                                                                           | false                                 |
+| debug-grpc       |           |           | Enable more logging for grpc                                                                        | false                                 |
 
 ### TLS Support
 
 1. No TLS
-
-- nothing todo
+   - nothing todo
 
 2. Edge terminated TLS
+   - Use case: E.g. in a Kubernetes Cluster with NGINX Ingress Controller
+   - Client: needs CA Cert
+   - Server: nothing todo, TLS is terminated before reaching server
+   - use: `ca-cert` flag
 
-- Use case: E.g. in a Kubenetes Cluster with NGINX Ingress Controller
-- Client: needs CA Cert
-- Server: nothing todo, TLS is terminated before reaching server
-- use: `ca-cert` flag
-
-3. E2E mutal TLS
-
-- Client: needs CA Cert
-- Server: needs Server Cert & Server Key
-- use: `ca-cert`, `server-cert`, `server-key` flags
+3. E2E mutual TLS
+   - Client: needs CA Cert
+   - Server: needs Server Cert & Server Key
+   - use: `ca-cert`, `server-cert`, `server-key` flags
 
 ## Support and Feedback
 
 The following channels are available for discussions, feedback, and support requests:
 
-| Type                     | Channel                                                |
-| ------------------------ | ------------------------------------------------------ |
-| **Issues**   | <a href="/../../issues/new/choose" title="General Discussion"><img src="https://img.shields.io/github/issues/telekom/canary-bot?style=flat-square"></a>  |
+| Type       | Channel                                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Issues** | <a href="/../../issues/new/choose" title="General Discussion"><img src="https://img.shields.io/github/issues/telekom/canary-bot?style=flat-square"></a> |
 
 ## How to Contribute
 
@@ -200,7 +187,6 @@ Copyright (c) 2022 Deutsche Telekom IT GmbH.
 
 Licensed under the **Apache License, Version 2.0** (the "License"); you may not use this file except in compliance with the License.
 
-You may obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0.
+You may obtain a copy of the License at <https://www.apache.org/licenses/LICENSE-2.0>.
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the [LICENSE](./LICENSE) for the specific language governing permissions and limitations under the License.
-
