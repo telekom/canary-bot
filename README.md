@@ -131,82 +131,82 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
 
 #### 1. First node in mesh
 
-    ```mermaid
-    flowchart LR
-    	subgraph graph [" "]
-    	ob(owl-bot)
-    	ob--joinMesh routine to target-->ob
-    	end
-    ```
+```mermaid
+flowchart LR
+    subgraph graph [" "]
+    ob(owl-bot)
+    ob--joinMesh routine to target-->ob
+    end
+```
 
 #### 2. Second node joins
 
-    ```mermaid
-    flowchart LR
-    	subgraph graph [" "]
-    	gb(goose-bot)
-    	ob(owl-bot)
-    	ob --joins mesh--> gb
-    	gb --joins mesh--> ob
-    	end
-    ```
+```mermaid
+flowchart LR
+    subgraph graph [" "]
+    gb(goose-bot)
+    ob(owl-bot)
+    ob --joins mesh--> gb
+    gb --joins mesh--> ob
+    end
+```
 
-    One bot joins mesh of the other; depends on who is faster
+One bot joins mesh of the other; depends on who is faster
 
 #### 3. Mesh created
 
-    ```mermaid
-    flowchart LR
-    	subgraph graph [" "]
-    	gb(goose-bot)
-    	ob(owl-bot)
-    	ob <--> gb
-    	end
-    ```
+```mermaid
+flowchart LR
+    subgraph graph [" "]
+    gb(goose-bot)
+    ob(owl-bot)
+    ob <--> gb
+    end
+```
 
-    All routines start: mesh functionality, measurement functionalities
+All routines start: mesh functionality, measurement functionalities
 
 #### 4. Third node joins
 
-    ```mermaid
-    flowchart TB
-    	subgraph graph [" "]
-    	gb(goose-bot)
-    	eb(eagle-bot)
-    	ob(owl-bot)
-    	ob <--> gb
-    	eb --joinMesh--> gb
-    	gb --send I-Am info--> eb
-    	end
-    ```
+```mermaid
+flowchart TB
+    subgraph graph [" "]
+    gb(goose-bot)
+    eb(eagle-bot)
+    ob(owl-bot)
+    ob <--> gb
+    eb --joinMesh--> gb
+    gb --send I-Am info--> eb
+    end
+```
 
 #### 5. Sending discovery
 
-    ```mermaid
-    flowchart LR
-    	subgraph graph [" "]
-    	gb(goose-bot)
-    	eb(eagle-bot)
-    	ob(owl-bot)
-    	gb --send discovery--> ob
-    	gb <--> ob
-    	gb <--> eb
-    	end
-    ```
+```mermaid
+flowchart LR
+    subgraph graph [" "]
+    gb(goose-bot)
+    eb(eagle-bot)
+    ob(owl-bot)
+    gb --send discovery--> ob
+    gb <--> ob
+    gb <--> eb
+    end
+```
 
 #### 6. Mesh expanded
 
-    ```mermaid
-    flowchart LR
-    	subgraph graph [" "]
-    	gb(goose-bot)
-    	eb(eagle-bot)
-    	ob(owl-bot)
-    	gb <-->eb
-    	eb <-->ob
-    	ob <-->gb
-    	end
-    ```
+```mermaid
+flowchart LR
+    subgraph graph [" "]
+    gb(goose-bot)
+    eb(eagle-bot)
+    ob(owl-bot)
+    gb <-->eb
+    eb <-->ob
+    ob <-->gb
+    end
+```
 
 ### CLI options
 
