@@ -127,8 +127,6 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
 
 ### Canary Mesh startup
 
- <!-- ![Canary Mesh](mesh.drawio.png)  -->
-
 #### 1. First node in mesh
 
 ```mermaid
