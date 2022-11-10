@@ -250,7 +250,7 @@ func (m *Mesh) Rtt() {
 		log.Debugw("No Node suitable for RTT measurement")
 		return
 	}
-	// select random node for RTT measurment
+	// select random node for RTT measurement
 	node := nodes[0]
 	log.Debugw("Node selected", "node", node.Name)
 	// grpc logging
@@ -298,10 +298,10 @@ func (m *Mesh) Rtt() {
 		log.Debugw("RTT failed")
 		return
 	}
-	log.Debugw("RTT succeded")
+	log.Debugw("RTT succeeded")
 	// RTT with handshake
 	rttH := rttEnd.Sub(rttStartH)
-	// RTT without handshale
+	// RTT without handshake
 	rtt := rttEnd.Sub(rttStart)
 
 	// safe samples
