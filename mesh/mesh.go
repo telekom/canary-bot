@@ -76,12 +76,12 @@ type NodeDiscovered struct {
 
 // Create a canary bot & mesh with the desired configuration
 // Use a pre-defined routineConfig with e.g. StandardProductionRoutineConfig()
-// and define your mesh setip configuration
+// and define your mesh setup configuration
 //
-// - Logger will be initialised
+// - Logger will be initialized
 // - setupConfig will be checked
 // - DB will be created
-// - Mesh will be initialised
+// - Mesh will be initialized
 // - Routines will be started
 // - API will be created
 func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupConfiguration) {
@@ -165,7 +165,7 @@ func (m *Mesh) timerRoutines() {
 	// Timer to send samples to node
 	m.pushSampleTicker = time.NewTicker(m.routineConfig.PushSampleInterval)
 	m.pushSampleTicker.Stop()
-	// Timer to clean sampels from removed nodes
+	// Timer to clean samples from removed nodes
 	m.cleanupTicker = time.NewTicker(m.routineConfig.CleanupInterval)
 	m.cleanupTicker.Stop()
 
@@ -202,21 +202,21 @@ func (m *Mesh) timerRoutines() {
 				break
 			}
 
-			// ping choosen node
+			// ping chosen node
 			go m.retryPing(nodes[0].Convert())
 
 		case <-m.pushSampleTicker.C:
 			log := m.logger.Named("sample-routine")
 			log.Debugw("Starting push sample routine to random nodes", "amount", m.routineConfig.PushSampleToAmount)
 
-			// get random, configured amount of healty nodes
+			// get random, configured amount of healthy nodes
 			nodes := m.database.GetRandomNodeListByState(NODE_OK, m.routineConfig.PushSampleToAmount)
 			if len(nodes) == 0 {
 				log.Debugw("No node connected or all nodes in timeout")
 				break
 			}
 
-			// push own measurement samples to choosen nodes
+			// push own measurement samples to chosen nodes
 			for _, node := range nodes {
 				log.Debugw("Pushing samples", "node", node.Name)
 				go m.retryPushSample(node.Convert())
@@ -370,7 +370,7 @@ func (m *Mesh) retryPushSample(node *meshv1.Node) {
 		}
 
 		// Push failed
-		log.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "atempt", r)
+		log.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "attempt", r)
 
 		if r != m.routineConfig.PushSampleRetryAmount {
 			// Retry delay
