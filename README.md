@@ -137,7 +137,7 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
 
  <!-- ![Canary Mesh](mesh.drawio.png)  -->
 
-1. First node in mesh
+#### 1. First node in mesh
 
     ```mermaid
     flowchart LR
@@ -147,7 +147,7 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
     	end
     ```
 
-2. Second node joins
+#### 2. Second node joins
 
     ```mermaid
     flowchart LR
@@ -161,7 +161,7 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
 
     One bot joins mesh of the other; depends on who is faster
 
-3. Mesh created
+#### 3. Mesh created
 
     ```mermaid
     flowchart LR
@@ -174,7 +174,7 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
 
     All routines start: mesh functionality, measurement functionalities
 
-4. Third node joins
+#### 4. Third node joins
 
     ```mermaid
     flowchart TB
@@ -188,7 +188,7 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
     	end
     ```
 
-5. Sending discovery
+#### 5. Sending discovery
 
     ```mermaid
     flowchart LR
@@ -202,7 +202,7 @@ Canary Mesh: Multiple Canary Bots connected to each other. Every Canary Bot mana
     	end
     ```
 
-6. Mesh expanded
+#### 6. Mesh expanded
 
     ```mermaid
     flowchart LR
