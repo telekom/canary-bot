@@ -28,7 +28,10 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"mime"
 	"net/http"
 	"strconv"
 
@@ -37,6 +40,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/telekom/canary-bot/data"
 	h "github.com/telekom/canary-bot/helper"
+	"github.com/telekom/canary-bot/proto/api/third_party"
 	apiv1 "github.com/telekom/canary-bot/proto/api/v1"
 	"github.com/telekom/canary-bot/proto/api/v1/apiv1connect"
 	"go.uber.org/zap"
@@ -117,7 +121,15 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 	interceptors := connect.WithInterceptors(a.NewAuthInterceptor())
 
 	mux := http.NewServeMux()
-	mux.Handle("/", getOpenAPIHandler())
+
+	// Open API Handler + Endpoint
+	openApiHandler, err := getOpenAPIHandler()
+	if err != nil {
+		log.Warn("Could not start the OpenAPI Endpoint ", err)
+	} else {
+		mux.Handle("/", openApiHandler)
+	}
+
 	mux.Handle(apiv1connect.NewApiServiceHandler(a, interceptors))
 	mux.Handle("/api/v1/", gwmux)
 	server := &http.Server{
@@ -133,4 +145,17 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 	}
 
 	return server.ListenAndServe()
+}
+
+func getOpenAPIHandler() (http.Handler, error) {
+	err := mime.AddExtensionType(".svg", "image/svg+xml")
+	if err != nil {
+		return nil, errors.New("Couldn't add extension type: " + err.Error())
+	}
+	// Use subdirectory in embedded files
+	subFS, err := fs.Sub(third_party.OpenAPI, "OpenAPI")
+	if err != nil {
+		return nil, errors.New("Couldn't create sub filesystem: " + err.Error())
+	}
+	return http.FileServer(http.FS(subFS)), nil
 }
