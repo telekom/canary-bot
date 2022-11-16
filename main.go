@@ -22,6 +22,7 @@
 package main
 
 import (
+	"log"
 	_ "net/http/pprof"
 
 	"github.com/telekom/canary-bot/mesh"
@@ -163,7 +164,10 @@ func bindEnvToFlags(cmd *cobra.Command, v *viper.Viper) {
 		// Mapping Flag with "-" to uppercase env with "_" --listen-port to <PREFIX>_LISTEN_PORT
 		if strings.Contains(f.Name, "-") {
 			envVarSuffix := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
-			v.BindEnv(f.Name, envPrefix+"_"+envVarSuffix)
+			err := v.BindEnv(f.Name, envPrefix+"_"+envVarSuffix)
+			if err != nil {
+				log.Printf("Could not bind env varibale %v", envPrefix+"_"+envVarSuffix)
+			}
 		}
 
 		// Apply the viper config value to the flag when the flag is not set and viper has a value
