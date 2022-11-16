@@ -22,6 +22,7 @@
 package helper
 
 import (
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -30,10 +31,9 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"log"
-	"math/rand"
+	"math/big"
 	"net"
 	"regexp"
-	"time"
 
 	"google.golang.org/grpc/credentials"
 )
@@ -117,19 +117,25 @@ const charset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 	"0123456789"
 
-var seededRand *rand.Rand = rand.New(
-	rand.NewSource(time.Now().UnixNano()))
-
-func stringWithCharset(length int, charset string) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
+func stringWithCharset(n int64, chars string) (string, error) {
+	ret := make([]byte, n)
+	for i := int64(0); i < n; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		ret[i] = chars[num.Int64()]
 	}
-	return string(b)
+
+	return string(ret), nil
 }
 
-func GenerateRandomToken(length int) string {
-	return stringWithCharset(length, charset)
+func GenerateRandomToken(length int64) string {
+	token, err := stringWithCharset(length, charset)
+	if err != nil {
+		panic("Could not generate a random token, please check func GenerateRandomToken")
+	}
+	return token
 }
 
 //------------------
