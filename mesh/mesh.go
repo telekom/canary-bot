@@ -382,13 +382,21 @@ func (m *Mesh) retryPushSample(node *meshv1.Node) {
 // Get the ID of a node
 // Hash integer value of the target field (name of node)
 func GetId(n *meshv1.Node) uint32 {
-	return h.Hash(n.Target)
+	id, err := h.Hash(n.Target)
+	if err != nil {
+		log.Printf("Could not get the hash value of the sample, please check the hash function")
+	}
+	return id
 }
 
 // Get the ID of a sample
 // Hash integer value of the concatenated From, To and Key field
 func GetSampleId(p *meshv1.Sample) uint32 {
-	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
+	id, err := h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
+	if err != nil {
+		log.Printf("Could not get the hash value of the sample, please check the hash function")
+	}
+	return id
 }
 
 // Setup the Logger

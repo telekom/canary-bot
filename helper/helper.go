@@ -103,10 +103,13 @@ func ValidateAddress(domain string) bool {
 	return RegExp.MatchString(domain)
 }
 
-func Hash(s string) uint32 {
+func Hash(s string) (uint32, error) {
 	h := fnv.New32a()
-	h.Write([]byte(s))
-	return h.Sum32()
+	_, err := h.Write([]byte(s))
+	if err != nil {
+		return 0, errors.New("Generating a hash value failed: " + err.Error())
+	}
+	return h.Sum32(), nil
 }
 
 // ------------------
