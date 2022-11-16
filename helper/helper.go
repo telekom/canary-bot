@@ -207,6 +207,7 @@ func LoadServerTLSCredentials(serverCert_path string, serverKey_path string, ser
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	return config, nil
