@@ -151,6 +151,9 @@ func (m *Mesh) StartServer() error {
 	grpcServer := grpc.NewServer(opts...)
 	meshv1.RegisterMeshServiceServer(grpcServer, meshServer)
 	reflection.Register(grpcServer)
-	grpcServer.Serve(lis)
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return err
+	}
 	return nil
 }
