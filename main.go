@@ -23,7 +23,6 @@ package main
 
 import (
 	"log"
-	_ "net/http/pprof"
 
 	"github.com/telekom/canary-bot/mesh"
 

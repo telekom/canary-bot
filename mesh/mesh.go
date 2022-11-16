@@ -23,7 +23,6 @@ package mesh
 
 import (
 	"log"
-	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -403,10 +402,10 @@ func GetSampleId(p *meshv1.Sample) uint32 {
 func getLogger(debug bool, pprofAddress string) *zap.SugaredLogger {
 	if debug {
 		// starting pprof for memory and cpu analysis
-		go func() {
-			log.Println("Starting go debugging profiler pprof on port 6060")
-			http.ListenAndServe(pprofAddress+":6060", nil)
-		}()
+		// go func() {
+		// 	log.Println("Starting go debugging profiler pprof on port 6060")
+		// 	http.ListenAndServe(pprofAddress+":6060", nil)
+		// }()
 
 		// using debug logger
 		logger, err := zap.NewDevelopment()
