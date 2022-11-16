@@ -154,7 +154,10 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 	if len(caCert_Paths) > 0 {
 		for _, path := range caCert_Paths {
 			pemServerCA, err := ioutil.ReadFile(path)
-			if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
+			if err != nil {
+				panic("Failed to add server ca certificate, path not found (security issue): " + path)
+			}
+			if !certPool.AppendCertsFromPEM(pemServerCA) {
 				return nil, fmt.Errorf("Failed to add server ca certificate")
 			}
 		}
@@ -170,7 +173,8 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 
 	// Create the credentials and return it
 	config := &tls.Config{
-		RootCAs: certPool,
+		RootCAs:    certPool,
+		MinVersion: tls.VersionTLS12,
 	}
 
 	return credentials.NewTLS(config), nil
