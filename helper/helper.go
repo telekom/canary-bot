@@ -159,6 +159,7 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 
 	if len(caCert_Paths) > 0 {
 		for _, path := range caCert_Paths {
+			/* #nosec G304*/
 			pemServerCA, err := ioutil.ReadFile(path)
 			if err != nil {
 				panic("Failed to add server ca certificate, path not found (security issue): " + path)
