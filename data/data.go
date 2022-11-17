@@ -22,6 +22,7 @@
 package data
 
 import (
+	l "log"
 	"strconv"
 	"time"
 
@@ -183,8 +184,13 @@ func (n *Node) Convert() *meshv1.Node {
 // Convert a given mesh node to a database node
 // with a given state of the node
 func Convert(n *meshv1.Node, state int) *Node {
+	id, err := h.Hash(n.Target)
+	if err != nil {
+		l.Printf("Could not get the hash value of the ID, please check the hash function")
+	}
+
 	return &Node{
-		Id:            h.Hash(n.Target),
+		Id:            id,
 		Name:          n.Name,
 		Target:        n.Target,
 		State:         state,
@@ -195,11 +201,20 @@ func Convert(n *meshv1.Node, state int) *Node {
 // Get the id of a database node.
 // The id is a hash integer
 func GetId(n *Node) uint32 {
-	return h.Hash(n.Target)
+	id, err := h.Hash(n.Target)
+	if err != nil {
+		l.Printf("Could not get the hash value of the ID, please check the hash function")
+	}
+
+	return id
 }
 
 // Get the id of a given sample.
 // The id is a hash integer
 func GetSampleId(p *Sample) uint32 {
-	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
+	id, err := h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
+	if err != nil {
+		l.Printf("Could not get the hash value of the sample, please check the hash function")
+	}
+	return id
 }

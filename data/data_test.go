@@ -70,6 +70,10 @@ func Test_NewMemDb(t *testing.T) {
 	}
 }
 
+// helper function
+func value(n uint32, _ error) uint32 {
+	return n
+}
 func Test_Convert(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -88,7 +92,7 @@ func Test_Convert(t *testing.T) {
 			},
 			state: 1,
 			expectedNode: &Node{
-				Id:            h.Hash("tegraT"),
+				Id:            value(h.Hash("tegraT")),
 				Name:          "test",
 				State:         1,
 				Target:        "tegraT",
@@ -98,7 +102,7 @@ func Test_Convert(t *testing.T) {
 		{
 			name: "Node to MeshNode",
 			inputNode: &Node{
-				Id:            h.Hash("tegraT"),
+				Id:            value(h.Hash("tegraT")),
 				Name:          "test",
 				State:         12,
 				Target:        "tegraT",
@@ -142,12 +146,12 @@ func Test_GetId(t *testing.T) {
 		{
 			name:       "Node with target",
 			node:       &Node{Target: "tegraT"},
-			expectedId: h.Hash("tegraT"),
+			expectedId: value(h.Hash("tegraT")),
 		},
 		{
 			name:       "Node without target",
 			node:       &Node{},
-			expectedId: h.Hash(""),
+			expectedId: value(h.Hash("")),
 		},
 	}
 
@@ -174,12 +178,12 @@ func Test_GetSampleId(t *testing.T) {
 				To:   "Gose",
 				Key:  1,
 			},
-			expectedId: h.Hash("EagleGose1"),
+			expectedId: value(h.Hash("EagleGose1")),
 		},
 		{
 			name:       "Empty samples",
 			sample:     &Sample{},
-			expectedId: h.Hash("0"),
+			expectedId: value(h.Hash("0")),
 		},
 	}
 

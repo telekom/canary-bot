@@ -22,6 +22,7 @@
 package helper
 
 import (
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -30,10 +31,9 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"log"
-	"math/rand"
+	"math/big"
 	"net"
 	"regexp"
-	"time"
 
 	"google.golang.org/grpc/credentials"
 )
@@ -103,10 +103,13 @@ func ValidateAddress(domain string) bool {
 	return RegExp.MatchString(domain)
 }
 
-func Hash(s string) uint32 {
+func Hash(s string) (uint32, error) {
 	h := fnv.New32a()
-	h.Write([]byte(s))
-	return h.Sum32()
+	_, err := h.Write([]byte(s))
+	if err != nil {
+		return 0, errors.New("Generating a hash value failed: " + err.Error())
+	}
+	return h.Sum32(), nil
 }
 
 // ------------------
@@ -114,19 +117,25 @@ const charset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 	"0123456789"
 
-var seededRand *rand.Rand = rand.New(
-	rand.NewSource(time.Now().UnixNano()))
-
-func stringWithCharset(length int, charset string) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
+func stringWithCharset(n int64, chars string) (string, error) {
+	ret := make([]byte, n)
+	for i := int64(0); i < n; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		ret[i] = chars[num.Int64()]
 	}
-	return string(b)
+
+	return string(ret), nil
 }
 
-func GenerateRandomToken(length int) string {
-	return stringWithCharset(length, charset)
+func GenerateRandomToken(length int64) string {
+	token, err := stringWithCharset(length, charset)
+	if err != nil {
+		panic("Could not generate a random token, please check func GenerateRandomToken")
+	}
+	return token
 }
 
 //------------------
@@ -150,8 +159,12 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 
 	if len(caCert_Paths) > 0 {
 		for _, path := range caCert_Paths {
+			/* #nosec G304*/
 			pemServerCA, err := ioutil.ReadFile(path)
-			if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
+			if err != nil {
+				panic("Failed to add server ca certificate, path not found (security issue): " + path)
+			}
+			if !certPool.AppendCertsFromPEM(pemServerCA) {
 				return nil, fmt.Errorf("Failed to add server ca certificate")
 			}
 		}
@@ -167,7 +180,8 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 
 	// Create the credentials and return it
 	config := &tls.Config{
-		RootCAs: certPool,
+		RootCAs:    certPool,
+		MinVersion: tls.VersionTLS12,
 	}
 
 	return credentials.NewTLS(config), nil
@@ -200,6 +214,7 @@ func LoadServerTLSCredentials(serverCert_path string, serverKey_path string, ser
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	return config, nil
