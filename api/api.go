@@ -34,6 +34,7 @@ import (
 	"mime"
 	"net/http"
 	"strconv"
+	"time"
 
 	connect "github.com/bufbuild/connect-go"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
@@ -133,8 +134,9 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 	mux.Handle(apiv1connect.NewApiServiceHandler(a, interceptors))
 	mux.Handle("/api/v1/", gwmux)
 	server := &http.Server{
-		Addr:    addr,
-		Handler: h2c.NewHandler(mux, &http2.Server{}),
+		Addr:              addr,
+		Handler:           h2c.NewHandler(mux, &http2.Server{}),
+		ReadHeaderTimeout: time.Minute,
 	}
 	log.Info("Serving Connect, gRPC-Gateway and OpenAPI Documentation on ", addr)
 
