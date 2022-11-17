@@ -23,14 +23,10 @@ package api
 
 import (
 	"context"
-	"io/fs"
-	"mime"
-	"net/http"
 	"time"
 
 	"github.com/telekom/canary-bot/data"
 
-	third_party "github.com/telekom/canary-bot/proto/api/third_party"
 	apiv1 "github.com/telekom/canary-bot/proto/api/v1"
 
 	connect "github.com/bufbuild/connect-go"
@@ -88,14 +84,4 @@ func (b *Api) ListNodes(ctx context.Context, req *connect.Request[apiv1.ListNode
 	return connect.NewResponse(&apiv1.ListNodesResponse{
 		Nodes: nodes,
 	}), nil
-}
-
-func getOpenAPIHandler() http.Handler {
-	mime.AddExtensionType(".svg", "image/svg+xml")
-	// Use subdirectory in embedded files
-	subFS, err := fs.Sub(third_party.OpenAPI, "OpenAPI")
-	if err != nil {
-		panic("couldn't create sub filesystem: " + err.Error())
-	}
-	return http.FileServer(http.FS(subFS))
 }

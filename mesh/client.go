@@ -231,12 +231,16 @@ func (m *Mesh) timeoutInterceptor(
 	return err
 }
 
-func (m *Mesh) closeClient(to *meshv1.Node) {
+func (m *Mesh) closeClient(to *meshv1.Node) error {
 	m.mu.Lock()
-	m.clients[GetId(to)].conn.Close()
+	err := m.clients[GetId(to)].conn.Close()
+	if err != nil {
+		return err
+	}
 	// remove client
 	delete(m.clients, GetId(to))
 	m.mu.Unlock()
+	return nil
 }
 
 func (m *Mesh) Rtt() {
