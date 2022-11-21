@@ -4,15 +4,19 @@ on:
   push:
     paths:
       - chart/**
+      - .github/workflows/helm.yml
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v3
+      with:
+        ref: ${GITHUB_REF_NAME}
     - uses: debianmaster/actions-k3s@master
       id: k3s
       with:
         version: 'v1.21.2-k3s1'
     - run: |
         kubectl get nodes
-        helm lint .
+        ls -la
+        helm lint chart
