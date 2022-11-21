@@ -33,6 +33,6 @@ jobs:
         HELM_EXPERIMENTAL_OCI=1 helm push $(ls *.tgz| head -1) oci://${REGISTRY}/${CHART_REPO}
       env:
         REGISTRY: mtr.devops.telekom.de
-        CHART_REPO: caas/charts/canary-bot
+        CHART_REPO: caas/charts
         OCI_USERNAME: ${{secrets.OCI_USERNAME}}
         OCI_PASSWORD: ${{secrets.OCI_PASSWORD}}
