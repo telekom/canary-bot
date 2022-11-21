@@ -27,6 +27,7 @@ jobs:
         helm lint chart
     - name: helm push
       run: |
+        helm version
         HELM_EXPERIMENTAL_OCI=1 helm registry login ${REGISTRY} -u ${OCI_USERNAME} -p ${OCI_PASSWORD}
         helm package chart
         HELM_EXPERIMENTAL_OCI=1 helm push $(ls *.tgz| head -1) oci://${REGISTRY}/${CHART_REPO}
