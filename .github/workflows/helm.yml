@@ -34,5 +34,5 @@ jobs:
       env:
         REGISTRY: mtr.devops.telekom.de
         CHART_REPO: caas/charts/canary-bot
-        OCI_USERNAME: ${secrets.OCI_USERNAME}
-        OCI_PASSWORD: ${secrets.OCI_PASSWORD}
+        OCI_USERNAME: ${{secrets.OCI_USERNAME}}
+        OCI_PASSWORD: ${{secrets.OCI_PASSWORD}}
