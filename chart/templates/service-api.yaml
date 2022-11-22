@@ -1,0 +1,15 @@
+{{ $fullName := print (include "canary-bot.fullname" .) "-api" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "canary-bot.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: apiport
+      port: {{ .Values.service.api.port | default "8080" }}
+      targetPort: {{ .Values.service.api.targetPort | default "8080" }}
+  selector:
+    {{- include "canary-bot.selectorLabels" . | nindent 4 }}
