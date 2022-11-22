@@ -9,7 +9,7 @@ metadata:
 spec:
   containers:
     - name: wget
-      image: busybox
+      image: {{ .Values.test.image | default "mtr.devops.telekom.de/caas/busybox:latest" }}
       command: ['wget']
-      args: ['{{ include "canary-bot.fullname" . }}:{{ .Values.service.port }}']
+      args: ['-S','http://{{ include "canary-bot.fullname" . }}-api:{{ .Values.service.api.port }}/v1/']
   restartPolicy: Never
