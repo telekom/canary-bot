@@ -5,11 +5,6 @@ metadata:
   labels:
     {{- include "canary-bot.labels" . | nindent 4 }}
 data:
-  MESH_API_PORT: {{ .Values.mesh.apiPort | default "8080" | quote }}
-  {{- if .Values.mesh.CaCertPath }}
-  MESH_CA_CERT_PATH: {{ .Values.mesh.CaCertPath | default "/cert/ca-root-global-cert.crt" }}
-  {{- end }}
-  MESH_JOIN_ADDRESS: {{ .Values.mesh.joinAddress | quote }}
-  MESH_LISTEN_PORT: {{ .Values.mesh.listenPort | default "8081" | quote }}
-  MESH_NAME: {{ .Values.mesh.name | quote }}
-  MESH_TARGET: {{ .Values.mesh.target | quote }}
+{{- with .Values.mesh }}
+  {{- toYaml . | nindent 2 }}
+{{- end }}
