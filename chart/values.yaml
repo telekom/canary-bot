@@ -41,9 +41,9 @@ service:
 
 # Configuration of Canary Mesh. Look at https://github.com/telekom/canary-bot#cli-options for details
 mesh:
-#   MESH_API_PORT: "8080"
+  MESH_API_PORT: "8080"
+  MESH_LISTEN_PORT: "8081"
 #   MESH_JOIN_ADDRESS: "bot00.example.com:443"
-#   MESH_LISTEN_PORT: "8081"
 #   MESH_NAME: "boot00"
 #   MESH_TARGET: "bot01.example.com:443,bot02.example.com:443,bot03.example.com:443"
 #   MESH_CA_CERT_PATH: "/cert/ca-root-global-cert.crt"
