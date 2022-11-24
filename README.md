@@ -52,8 +52,9 @@ helm upgrade -i canary-01 \
   --set mesh.MESH_TARGET=canary-00-canary-bot-mesh:8081 \
   --version 0.0.2 \
   oci://mtr.devops.telekom.de/caas/charts/canary-bot
-
 ```
+
+Requires Helm >3.8, otherwise add `HELM_EXPERIMENTAL_OCI=1` to call helm.
 
 For extended configuration or route traffic via Ingress look at [values.yaml](chart/values.yaml).
 
