@@ -43,20 +43,20 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.mesh.MESH_API_PORT | default "8080" }}
               name: apiport
               protocol: TCP
-            - containerPort: 8081
+            - containerPort: {{ .Values.mesh.MESH_LISTEN_PORT | default "8081" }}
               name: meshport
               protocol: TCP
           livenessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: {{ .Values.mesh.MESH_API_PORT | default "8080" }}
           readinessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: {{ .Values.mesh.MESH_API_PORT | default "8080" }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
