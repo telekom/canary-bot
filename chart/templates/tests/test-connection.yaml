@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "canary-bot.fullname" . }}-test-connection"
+  labels:
+    {{- include "canary-bot.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: {{ .Values.test.image | default "mtr.devops.telekom.de/caas/busybox:latest" }}
+      command: ['wget']
+      args: ['-S','http://{{ include "canary-bot.fullname" . }}-api:{{ .Values.service.api.port }}/v1/']
+  restartPolicy: Never

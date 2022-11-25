@@ -32,13 +32,39 @@ Current measurement samples:
 
 ## Installation
 
+### By Helm
+
+Install two instances and connect each other via services endpoint:
+
+```bash
+helm upgrade -i canary-00 \
+  --set mesh.MESH_NAME=canary-00 \
+  --set mesh.MESH_JOIN_ADDRESS=canary-00-canary-bot-mesh:8081 \
+  --set mesh.MESH_TARGET=canary-01-canary-bot-mesh:8081 \
+  --version 0.0.2 \
+  oci://mtr.devops.telekom.de/caas/charts/canary-bot
+```
+
+```bash
+helm upgrade -i canary-01 \
+  --set mesh.MESH_NAME=canary-01 \
+  --set mesh.MESH_JOIN_ADDRESS=canary-01-canary-bot-mesh:8081 \
+  --set mesh.MESH_TARGET=canary-00-canary-bot-mesh:8081 \
+  --version 0.0.2 \
+  oci://mtr.devops.telekom.de/caas/charts/canary-bot
+```
+
+Requires Helm >3.8, otherwise add `HELM_EXPERIMENTAL_OCI=1` to call helm.
+
+For extended configuration or route traffic via Ingress look at [values.yaml](chart/values.yaml).
+
 ### By Source
 
 Install it and use it with [Go SDK](https://golang.org/doc/install) by running `go install github.com/telekom/canary-bot`
 
 Run the following cmd on your different dedicated hosts:
 
-``` bash
+```bash
 # first host
 canary-bot --name swan --target bird-goose.com:443 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn --join-address bird-swan.com:443 --listen-port 443
 

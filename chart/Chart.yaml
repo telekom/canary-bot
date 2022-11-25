@@ -1,0 +1,15 @@
+apiVersion: v2
+name: canary-bot
+description: A Helm chart to deploy Canary Bot
+type: application
+version: 0.0.2
+appVersion: "v0.1.1"
+sources:
+  - https://github.com/telekom/canary-bot
+maintainers:
+  - name: eumel8
+    email: f.kloeker@telekom.de
+    url: https://www.telekom.com
+  - name: y-eight 
+    email: maximilian.schubert@telekom.de
+    url: https://www.telekom.com

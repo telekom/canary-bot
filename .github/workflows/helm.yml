@@ -1,0 +1,38 @@
+# https://github.com/marketplace/actions/actions-k3s
+#
+# Variables:
+# $REGISTRY: Name of the OCI registry, e.g. mtr.devops.telekom.d
+# $OCI_USERNAME: OCI username
+# $OCI_PASSWORD: OCI password
+# $CHART_REPO: Chart Repo, e.g. caas/charts/canary-bot
+#
+name: Helm Testing & Pushing
+on:
+  push:
+    paths:
+      - chart/**
+      - .github/workflows/helm.yml
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: debianmaster/actions-k3s@master
+      id: k3s
+      with:
+        version: 'v1.21.2-k3s1'
+    - name: helm lint
+      run: |
+        kubectl get nodes
+        helm lint chart
+    - name: helm push
+      run: |
+        helm version
+        HELM_EXPERIMENTAL_OCI=1 helm registry login ${REGISTRY} -u ${OCI_USERNAME} -p ${OCI_PASSWORD}
+        helm package chart
+        HELM_EXPERIMENTAL_OCI=1 helm push $(ls *.tgz| head -1) oci://${REGISTRY}/${CHART_REPO}
+      env:
+        REGISTRY: mtr.devops.telekom.de
+        CHART_REPO: caas/charts
+        OCI_USERNAME: ${{secrets.OCI_USERNAME}}
+        OCI_PASSWORD: ${{secrets.OCI_PASSWORD}}

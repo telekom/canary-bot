@@ -1,0 +1,15 @@
+{{ $fullName := print (include "canary-bot.fullname" .) "-mesh" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "canary-bot.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: meshport
+      port: {{ .Values.service.mesh.port | default "8081" }}
+      targetPort: {{ .Values.service.mesh.targetPort | default "8081" }}
+  selector:
+    {{- include "canary-bot.selectorLabels" . | nindent 4 }}

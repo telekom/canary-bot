@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "canary-bot.fullname" . }}
+  labels:
+    {{- include "canary-bot.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "canary-bot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        restart: {{ randAlphaNum 5 | quote }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "canary-bot.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "canary-bot.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- if .Values.addEnv}}
+          env:
+          {{- range $key, $val := .Values.addEnv }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "canary-bot.fullname" . }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mesh.MESH_API_PORT | default "8080" }}
+              name: apiport
+              protocol: TCP
+            - containerPort: {{ .Values.mesh.MESH_LISTEN_PORT | default "8081" }}
+              name: meshport
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.mesh.MESH_API_PORT | default "8080" }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.mesh.MESH_API_PORT | default "8080" }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          - mountPath: cert
+            name: {{ include "canary-bot.fullname" . }}-ca-cert-store
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: {{ include "canary-bot.fullname" . }}-ca-cert-store
+        name: {{ include "canary-bot.fullname" . }}-ca-cert-store

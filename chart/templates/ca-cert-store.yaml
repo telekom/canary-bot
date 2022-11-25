@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ print (include "canary-bot.fullname" .) "-ca-cert-store" }}
+  labels:
+    {{- include "canary-bot.labels" . | nindent 4 }}
+data:
+{{- if .Values.caRootGlobalCert }}
+  ca-root-global-cert.crt: {{ .Values.caRootGlobalCert | quote }}
+{{- end }}
