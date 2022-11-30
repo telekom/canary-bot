@@ -2,9 +2,8 @@
     Canary Bot
 </h1>
 
-[![End2End Testing](https://github.com/telekom/canary-bot/actions/workflows/end2end.yaml/badge.svg)](https://github.com/telekom/canary-bot/actions/workflows/end2end.yaml)
-
 <p align="center">
+    <a href="https://github.com/telekom/canary-bot/actions/workflows/end2end.yaml" title="End2End Testing"><img src="https://github.com/telekom/canary-bot/actions/workflows/end2end.yaml/badge.svg"></a>
     <a href="/../../commits/" title="Last Commit"><img src="https://img.shields.io/github/last-commit/telekom/canary-bot?style=flat"></a>
     <a href="/../../issues" title="Open Issues"><img src="https://img.shields.io/github/issues/telekom/canary-bot?style=flat"></a>
     <a href="./LICENSE" title="License"><img src="https://img.shields.io/badge/License-Apache%202.0-green.svg?style=flat"></a>
