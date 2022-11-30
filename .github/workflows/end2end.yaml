@@ -1,0 +1,76 @@
+# This workflow installs 2 instances of canary-bot and
+# verify the API output
+
+name: End2End Testing
+on:
+  push:
+
+jobs:
+  end2end:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+    - name: Set up K3S
+      uses: debianmaster/actions-k3s@master
+      id: k3s
+      with:
+        version: 'v1.21.2-k3s1'
+    - name: Check Cluster
+      run: |
+        kubectl get nodes
+    - name: Setup Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm version
+    - name: Install Canary 00
+      run: |
+        helm upgrade -i canary-00 \
+          --atomic \
+          --timeout 300s \
+          --set mesh.MESH_NAME=canary-00 \
+          --set mesh.MESH_JOIN_ADDRESS=canary-00-canary-bot-mesh:8081 \
+          --set mesh.MESH_TARGET=canary-01-canary-bot-mesh:8081 \
+          --set addEnv.MESH_TOKEN=12345678 chart
+    - name: Install Canary 01
+      run: |
+        helm upgrade -i canary-01 \
+          --atomic \
+          --timeout 300s \
+          --set mesh.MESH_NAME=canary-01 \
+          --set mesh.MESH_JOIN_ADDRESS=canary-01-canary-bot-mesh:8081 \
+          --set mesh.MESH_TARGET=canary-00-canary-bot-mesh:8081 \
+          --set addEnv.MESH_TOKEN=12345678 chart
+    - name: Check Pods
+      run: |
+        kubectl get pods
+    - name: Check Canary 00
+      run: |
+        kubectl create job curl --image=mtr.devops.telekom.de/mcsps/curl:7.65.3 -- curl -f -v -H 'Authorization: Bearer 12345678' -H 'Content-Type: application/json'  http://canary-00-canary-bot-api:8080/api/v1/samples
+        kubectl wait --for=condition=complete job/curl
+        STATUS=$(kubectl get job curl -o jsonpath={.status.succeeded})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Job failed"
+          kubectl logs -ljob-name=curl
+          kubectl delete job curl
+          exit 1
+        else
+          echo "Job OK"
+          kubectl delete job curl
+        fi
+    - name: Check Canary 01
+      run: |
+        kubectl create job curl --image=mtr.devops.telekom.de/mcsps/curl:7.65.3 -- curl -f -v -H 'Authorization: Bearer 12345678' -H 'Content-Type: application/json'  http://canary-01-canary-bot-api:8080/api/v1/samples
+        kubectl wait --for=condition=complete job/curl
+        STATUS=$(kubectl get job curl -o jsonpath={.status.succeeded})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Job failed"
+          kubectl logs -ljob-name=curl
+          kubectl delete job curl
+          exit 1
+        else
+          echo "Job OK"
+          kubectl delete job curl
+        fi
