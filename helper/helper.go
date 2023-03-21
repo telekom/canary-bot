@@ -29,10 +29,10 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
+	"os"
 	"regexp"
 
 	"google.golang.org/grpc/credentials"
@@ -138,7 +138,7 @@ func GenerateRandomToken(length int64) string {
 	return token
 }
 
-//------------------
+// ------------------
 func Equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -160,7 +160,7 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 	if len(caCert_Paths) > 0 {
 		for _, path := range caCert_Paths {
 			/* #nosec G304*/
-			pemServerCA, err := ioutil.ReadFile(path)
+			pemServerCA, err := os.ReadFile(path)
 			if err != nil {
 				panic("Failed to add server ca certificate, path not found (security issue): " + path)
 			}
