@@ -1,0 +1,35 @@
+variables:
+  NO_PROXY: "$NO_PROXY,*.telekom.de"
+  BINARY_NAME: "cbot"
+  BINARY_PATH: "build/"
+  BINARY: "${BINARY_PATH}${BINARY_NAME}"
+
+default:
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - ${BINARY_PATH}
+
+stages:
+  - test
+  - pre-build
+  - build
+  - scan
+  - push
+  - sign
+
+include:
+  - project: caas/cicd_templates
+    file: ci_general.yml
+
+binary_build:
+  stage: pre-build
+  image: dockerhub.devops.telekom.de/golang:1.19
+  script:
+    - go mod download
+    - CGO_ENABLED=0 go build -ldflags "-s -w" -o ${BINARY} .
+  rules:
+    - changes:
+        - "**/*.go"
+        - "**/go.mod"
+        - "Dockerfile"
