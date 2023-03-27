@@ -33,10 +33,26 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
 	envPrefix = "MESH"
+)
+
+// prometheus metrics for nodes and samples and cluster
+
+var (
+	nodecounts = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "mesh_nodes",
+		Help: "The total number of nodes",
+	})
+	samplecounts = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "mesh_samples",
+		Help: "The total number of samples",
+	})
 )
 
 var cmd = &cobra.Command{

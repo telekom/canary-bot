@@ -39,6 +39,7 @@ import (
 	connect "github.com/bufbuild/connect-go"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/telekom/canary-bot/data"
 	h "github.com/telekom/canary-bot/helper"
 	"github.com/telekom/canary-bot/proto/api/third_party"
@@ -133,6 +134,7 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 
 	mux.Handle(apiv1connect.NewApiServiceHandler(a, interceptors))
 	mux.Handle("/api/v1/", gwmux)
+	mux.Handle("/metrics", promhttp.Handler())
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           h2c.NewHandler(mux, &http2.Server{}),

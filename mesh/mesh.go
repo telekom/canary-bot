@@ -145,6 +145,8 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		CaCert:         setupConfig.CaCert,
 	}
 
+	// init prometheus metrics to fetch data from database
+
 	// start the mesh API
 	if err = api.StartApi(database, apiConfig, logger.Named("api")); err != nil {
 		logger.Fatal("Could not start API - Error: %+v", err)
