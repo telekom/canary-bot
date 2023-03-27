@@ -1,10 +1,11 @@
-FROM dockerhub.devops.telekom.de/alpine:3.16
-ADD ./build /app
+FROM cgr.dev/chainguard/go:latest as gobuild
 WORKDIR /app
-ARG user_id=1001
-RUN adduser -S $user_id -G root -u $user_id \
-  && chown -R $user_id:root /app
+ADD . .
+RUN go mod download
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o canary .
 
-USER $user_id
-
-ENTRYPOINT ["/app/cbot"]
+FROM scratch
+COPY --from=gobuild /app/canary /canary
+COPY --from=gobuild /etc/passwd /etc/passwd
+USER 65532
+ENTRYPOINT ["/canary"]
