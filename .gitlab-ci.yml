@@ -1,0 +1,10 @@
+stages:
+  - test
+  - build
+  - scan
+  - push
+  - sign
+
+include:
+  - project: caas/cicd_templates
+    file: ci_general.yml
