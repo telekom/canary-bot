@@ -41,7 +41,7 @@ type MeshClient struct {
 	client meshv1.MeshServiceClient
 }
 
-//bool NameUnique
+// bool NameUnique
 func (m *Mesh) Join(targets []string) (bool, bool) {
 	log := m.logger.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
@@ -86,7 +86,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 		// save join-requested node as node in mesh
 		node.Name = res.MyName
 		m.database.SetNode(data.Convert(node, NODE_OK))
-		//m.clients[GetId(node)].conn.Close()
+		// m.clients[GetId(node)].conn.Close()
 
 		log.Infow("Joined mesh", "name", node.Name, "target", node.Target)
 		break
@@ -137,7 +137,8 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 			IAmNode: &meshv1.Node{
 				Name:   m.setupConfig.Name,
 				Target: m.setupConfig.ListenAddress + ":" + strconv.FormatInt(m.setupConfig.ListenPort, 10),
-			}})
+			},
+		})
 	if err != nil {
 		log.Warnf("Could not start request to client - skip Node Discover Request", "node", toNode.Name, "error", err)
 	}
@@ -203,7 +204,7 @@ func (m *Mesh) initClient(to *meshv1.Node) error {
 
 		client := meshv1.NewMeshServiceClient(conn)
 
-		m.mu.Lock() //TODO has to be moved to the top?
+		m.mu.Lock() // TODO has to be moved to the top?
 		m.clients[nodeId] = &MeshClient{
 			client: client,
 			conn:   conn,
@@ -307,6 +308,10 @@ func (m *Mesh) Rtt() {
 	rttH := rttEnd.Sub(rttStartH)
 	// RTT without handshake
 	rtt := rttEnd.Sub(rttStart)
+
+	// safe metrics
+	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RTT_TOTAL], node.Name).Observe(rttH.Seconds())
+	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RTT_REQUEST], node.Name).Observe(rtt.Seconds())
 
 	// safe samples
 	m.database.SetSample(

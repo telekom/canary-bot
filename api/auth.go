@@ -24,10 +24,36 @@ package api
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	connect "github.com/bufbuild/connect-go"
 )
 
+// http auth handler
+func (a *Api) NewAuthHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authToken := r.Header.Get("Authorization")
+		if authToken == "" {
+			a.log.Warnw("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "failed")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// check if token is correct
+		for _, t := range a.config.Tokens {
+			if authToken[7:] == t {
+				a.log.Infow("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "succeded")
+				h.ServeHTTP(w, r)
+				return
+			}
+		}
+		a.log.Warnw("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "failed")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	})
+}
+
+// grpc auth interceptor
 func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
 		return connect.UnaryFunc(

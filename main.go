@@ -22,37 +22,20 @@
 package main
 
 import (
-	"log"
-
-	"github.com/telekom/canary-bot/mesh"
-
 	"fmt"
+	"log"
 	"os"
 	"strings"
+
+	"github.com/telekom/canary-bot/mesh"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
 	envPrefix = "MESH"
-)
-
-// prometheus metrics for nodes and samples and cluster
-
-var (
-	nodecounts = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "mesh_nodes",
-		Help: "The total number of nodes",
-	})
-	samplecounts = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "mesh_samples",
-		Help: "The total number of samples",
-	})
 )
 
 var cmd = &cobra.Command{
@@ -84,8 +67,10 @@ cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path pat
 	Run:              run,
 }
 
-var defaults mesh.SetupConfiguration
-var set mesh.SetupConfiguration
+var (
+	defaults mesh.SetupConfiguration
+	set      mesh.SetupConfiguration
+)
 
 // Will create the
 func run(cmd *cobra.Command, args []string) {

@@ -273,6 +273,12 @@ Use the offered CLI options or use environment variables with a 'MESH' prefix e.
    - Server: needs Server Cert & Server Key
    - use: `ca-cert`, `server-cert`, `server-key` flags
 
+### `/metrics` support
+
+Canary data will be exposed at `/metrics`. Authorization is required.
+Use the token passed to the canary by flag `--token` for authorization (if you did not set the token yourself, it will be generated and exposed to stdout).
+Currently the `node_count` and histogram metrics (`rtt` buckets) from the requested pod are available.
+
 ## Support and Feedback
 
 The following channels are available for discussions, feedback, and support requests:

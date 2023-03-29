@@ -28,6 +28,7 @@ import (
 
 	"github.com/telekom/canary-bot/data"
 	h "github.com/telekom/canary-bot/helper"
+	"github.com/telekom/canary-bot/metric"
 	meshv1 "github.com/telekom/canary-bot/proto/mesh/v1"
 
 	"go.uber.org/zap"
@@ -42,9 +43,10 @@ import (
 // Mesh server for incomming requests
 type MeshServer struct {
 	meshv1.UnimplementedMeshServiceServer
-	log  *zap.SugaredLogger
-	data *data.Database
-	name *string
+	metrics metric.Metrics
+	log     *zap.SugaredLogger
+	data    *data.Database
+	name    *string
 
 	newNodeDiscovered chan NodeDiscovered
 }
@@ -109,6 +111,7 @@ func (s *MeshServer) Rtt(ctx context.Context, req *emptypb.Empty) (*emptypb.Empt
 func (m *Mesh) StartServer() error {
 	meshServer := &MeshServer{
 		log:               m.logger.Named("server"),
+		metrics:           m.metrics,
 		data:              &m.database,
 		name:              &m.setupConfig.Name,
 		newNodeDiscovered: m.newNodeDiscovered,
