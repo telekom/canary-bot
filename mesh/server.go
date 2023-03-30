@@ -40,7 +40,7 @@ import (
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 )
 
-// Mesh server for incomming requests
+// MeshServer for incoming requests
 type MeshServer struct {
 	meshv1.UnimplementedMeshServiceServer
 	metrics metric.Metrics
@@ -51,7 +51,7 @@ type MeshServer struct {
 	newNodeDiscovered chan NodeDiscovered
 }
 
-// RPC if node wants to join the mesh
+// JoinMesh allows a node to join the mesh
 func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.JoinMeshResponse, error) {
 	s.log.Infow("New join mesh request", "node", req.Name)
 	// Check if name of joining node is unique in mesh, let join if state is not ok, let join if target is same

@@ -309,11 +309,11 @@ func (m *Mesh) Rtt() {
 	// RTT without handshake
 	rtt := rttEnd.Sub(rttStart)
 
-	// safe metrics
+	// save metrics
 	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RTT_TOTAL], node.Name).Observe(rttH.Seconds())
 	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RTT_REQUEST], node.Name).Observe(rtt.Seconds())
 
-	// safe samples
+	// save samples
 	m.database.SetSample(
 		&data.Sample{
 			From:  m.setupConfig.Name,

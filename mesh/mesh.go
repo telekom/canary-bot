@@ -36,7 +36,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Main struct for the mesh
+// Mesh is the internal mesh representation
 type Mesh struct {
 	// Mesh in-memory datastore
 	database data.Database
@@ -70,13 +70,13 @@ type Mesh struct {
 	joinRoutineDone    bool
 }
 
-// A newly discoverd node in the mesh
+// NodeDiscovered represents a newly discovered node in the mesh
 type NodeDiscovered struct {
 	NewNode *meshv1.Node
 	From    uint32 // TODO change to name
 }
 
-// Create a canary bot & mesh with the desired configuration
+// CreateCanaryMesh creates a canary bot & mesh with the desired configuration
 // Use a pre-defined routineConfig with e.g. StandardProductionRoutineConfig()
 // and define your mesh setup configuration
 //
