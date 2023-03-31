@@ -42,6 +42,7 @@ type PrometheusMetrics struct {
 	rtt      *prometheus.HistogramVec
 }
 
+// InitMetrics initializes the metrics and returns the PrometheusMetrics
 func InitMetrics() *PrometheusMetrics {
 	m := &PrometheusMetrics{
 		registry: prometheus.NewRegistry(),
@@ -58,7 +59,7 @@ func InitMetrics() *PrometheusMetrics {
 		}),
 	}
 
-	// Add metrics
+	// register metrics
 	m.registry.MustRegister(
 		m.rtt,
 		m.nodes,
@@ -67,21 +68,26 @@ func InitMetrics() *PrometheusMetrics {
 	return m
 }
 
+// GetRegistry returns the registry to register prometheus metrics
 func (m *PrometheusMetrics) GetRegistry() *prometheus.Registry {
 	return m.registry
 }
 
+// Handler is a middleware to collect metrics
 func (m *PrometheusMetrics) Handler(data data.Database, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// set node count
 		m.nodes.Set(float64(len(data.GetNodeList())))
 		h.ServeHTTP(w, r)
 	})
 }
 
+// GetNodes returns the node count metric
 func (m *PrometheusMetrics) GetNodes() prometheus.Gauge {
 	return m.nodes
 }
 
+// GetRtt returns the rtt metric
 func (m *PrometheusMetrics) GetRtt() *prometheus.HistogramVec {
 	return m.rtt
 }

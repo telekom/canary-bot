@@ -36,17 +36,19 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// MeshClient is the client for the mesh service
 type MeshClient struct {
 	conn   *grpc.ClientConn
 	client meshv1.MeshServiceClient
 }
 
-// bool NameUnique
+// Join is used by the node to join the mesh network
 func (m *Mesh) Join(targets []string) (bool, bool) {
 	log := m.logger.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
 	log.Debugw("Starting")
 
+	// try to connect to one node in targets
 	for index, target := range targets {
 		log.Debugf("Index %+v Targets: %+v", index, targets)
 		node := &meshv1.Node{Name: "", Target: target}
@@ -61,6 +63,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 			return false, true
 		}
 
+		// send join mesh request
 		res, err = m.clients[GetId(node)].client.JoinMesh(
 			context.Background(),
 			&meshv1.Node{
@@ -86,7 +89,6 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 		// save join-requested node as node in mesh
 		node.Name = res.MyName
 		m.database.SetNode(data.Convert(node, NODE_OK))
-		// m.clients[GetId(node)].conn.Close()
 
 		log.Infow("Joined mesh", "name", node.Name, "target", node.Target)
 		break
