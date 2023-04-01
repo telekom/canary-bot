@@ -8,3 +8,8 @@ stages:
 include:
   - project: caas/cicd_templates
     file: ci_general.yml
+
+test_go:
+  stage: test
+  before_script:
+    - go install github.com/matryer/moq@latest

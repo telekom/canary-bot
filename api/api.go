@@ -39,8 +39,10 @@ import (
 	connect "github.com/bufbuild/connect-go"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/telekom/canary-bot/data"
 	h "github.com/telekom/canary-bot/helper"
+	"github.com/telekom/canary-bot/metric"
 	"github.com/telekom/canary-bot/proto/api/third_party"
 	apiv1 "github.com/telekom/canary-bot/proto/api/v1"
 	"github.com/telekom/canary-bot/proto/api/v1/apiv1connect"
@@ -53,11 +55,12 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger) error {
+func StartApi(data data.Database, metrics metric.Metrics, config *Configuration, log *zap.SugaredLogger) error {
 	a := &Api{
-		data:   data,
-		config: config,
-		log:    log,
+		data:    data,
+		metrics: metrics,
+		config:  config,
+		log:     log,
 	}
 
 	if config.DebugGrpc {
@@ -73,7 +76,6 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 		config.ServerCert,
 		config.ServerKey,
 	)
-
 	if err != nil {
 		log.Warnw("Cannot load TLS server credentials - using insecure connection for incoming requests")
 		log.Debugw("Cannot load TLS credentials", "error", err.Error())
@@ -84,7 +86,6 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 	var tlsClientCredentials credentials.TransportCredentials
 	if tlsCredentials != nil {
 		tlsClientCredentials, err = h.LoadClientTLSCredentials(config.CaCertPath, config.CaCert)
-
 	}
 
 	if err != nil {
@@ -133,6 +134,18 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 
 	mux.Handle(apiv1connect.NewApiServiceHandler(a, interceptors))
 	mux.Handle("/api/v1/", gwmux)
+	mux.Handle("/metrics",
+		a.NewAuthHandler(
+			metrics.Handler(a.data,
+				promhttp.HandlerFor(
+					metrics.GetRegistry(),
+					promhttp.HandlerOpts{
+						EnableOpenMetrics: true,
+					},
+				),
+			),
+		),
+	)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           h2c.NewHandler(mux, &http2.Server{}),

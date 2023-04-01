@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/telekom/canary-bot/data"
+	"github.com/telekom/canary-bot/metric"
 
 	apiv1 "github.com/telekom/canary-bot/proto/api/v1"
 
@@ -35,9 +36,10 @@ import (
 
 // Api implements the protobuf interface
 type Api struct {
-	data   data.Database
-	config *Configuration
-	log    *zap.SugaredLogger
+	data    data.Database
+	metrics metric.Metrics
+	config  *Configuration
+	log     *zap.SugaredLogger
 }
 
 type Configuration struct {

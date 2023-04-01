@@ -30,15 +30,18 @@ import (
 	"github.com/telekom/canary-bot/api"
 	"github.com/telekom/canary-bot/data"
 	h "github.com/telekom/canary-bot/helper"
+	"github.com/telekom/canary-bot/metric"
 	meshv1 "github.com/telekom/canary-bot/proto/mesh/v1"
 
 	"go.uber.org/zap"
 )
 
-// Main struct for the mesh
+// Mesh is the internal mesh representation
 type Mesh struct {
 	// Mesh in-memory datastore
 	database data.Database
+	// Metrics for bot
+	metrics metric.Metrics
 	// Global zap logger
 	logger *zap.SugaredLogger
 	// Configuration for the timer- and channelRoutines
@@ -67,13 +70,13 @@ type Mesh struct {
 	joinRoutineDone    bool
 }
 
-// A newly discoverd node in the mesh
+// NodeDiscovered represents a newly discovered node in the mesh
 type NodeDiscovered struct {
 	NewNode *meshv1.Node
 	From    uint32 // TODO change to name
 }
 
-// Create a canary bot & mesh with the desired configuration
+// CreateCanaryMesh creates a canary bot & mesh with the desired configuration
 // Use a pre-defined routineConfig with e.g. StandardProductionRoutineConfig()
 // and define your mesh setup configuration
 //
@@ -102,8 +105,12 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		logger.Fatalf("Could not create Memory Database (MemDB) - Error: %+v", err)
 	}
 
+	// init metrics
+	metrics := metric.InitMetrics()
+
 	m := &Mesh{
 		database:           database,
+		metrics:            metrics,
 		logger:             logger,
 		routineConfig:      routineConfig,
 		setupConfig:        setupConfig,
@@ -146,7 +153,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 	}
 
 	// start the mesh API
-	if err = api.StartApi(database, apiConfig, logger.Named("api")); err != nil {
+	if err = api.StartApi(database, metrics, apiConfig, logger.Named("api")); err != nil {
 		logger.Fatal("Could not start API - Error: %+v", err)
 	}
 }

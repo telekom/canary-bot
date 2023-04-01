@@ -22,13 +22,12 @@
 package main
 
 import (
-	"log"
-
-	"github.com/telekom/canary-bot/mesh"
-
 	"fmt"
+	"log"
 	"os"
 	"strings"
+
+	"github.com/telekom/canary-bot/mesh"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -68,8 +67,10 @@ cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path pat
 	Run:              run,
 }
 
-var defaults mesh.SetupConfiguration
-var set mesh.SetupConfiguration
+var (
+	defaults mesh.SetupConfiguration
+	set      mesh.SetupConfiguration
+)
 
 // Will create the
 func run(cmd *cobra.Command, args []string) {
