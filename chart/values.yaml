@@ -39,11 +39,16 @@ service:
     port: 8081
     targetPort: 8081
 
+# create ServiceMonitor for Prometheus
 serviceMonitor: {}
   # create: true
   # interval: 5s
   # path: /metrics
   # token: "12345678" # should be equal to MESH_TOKEN
+
+# create a Grafana Dashboard for Canary
+grafanaDashboard: {}
+  # create: true
 
 # Configuration of Canary Mesh. Look at https://github.com/telekom/canary-bot#cli-options for details
 mesh:
