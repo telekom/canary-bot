@@ -1,0 +1,19 @@
+{{- if .Values.serviceMonitor.create -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "canary-bot.labels" . | nindent 4 }}
+  name: {{ include "canary-bot.serviceAccountName" . }}
+spec:
+  endpoints:
+  - bearerTokenSecret:
+      key: MONITOR_TOKEN
+      name: {{ include "canary-bot.serviceAccountName" . }}-monitor
+    interval: {{ .Values.serviceMonitor.interval | default "5s" }}
+    path: {{ .Values.serviceMonitor.path | default "/metrics" }}
+    port: apiport
+  selector:
+    matchLabels:
+    {{- include "canary-bot.selectorLabels" . | nindent 6 }}
+{{- end }}

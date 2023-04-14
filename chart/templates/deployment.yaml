@@ -6,6 +6,8 @@ metadata:
     {{- include "canary-bot.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "canary-bot.selectorLabels" . | nindent 6 }}

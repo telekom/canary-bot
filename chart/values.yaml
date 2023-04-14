@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: mtr.devops.telekom.de/caas/canary-bot
   pullPolicy: IfNotPresent
-  tag: v0.1.1
+  tag: v0.1.3
 
 test:
   image: mtr.devops.telekom.de/caas/busybox:latest
@@ -38,6 +38,17 @@ service:
   mesh:
     port: 8081
     targetPort: 8081
+
+# create ServiceMonitor for Prometheus
+serviceMonitor: {}
+  # create: true
+  # interval: 5s
+  # path: /metrics
+  # token: "12345678" # should be equal to MESH_TOKEN
+
+# create a Grafana Dashboard for Canary
+grafanaDashboard: {}
+  # create: true
 
 # Configuration of Canary Mesh. Look at https://github.com/telekom/canary-bot#cli-options for details
 mesh:
