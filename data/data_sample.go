@@ -2,7 +2,7 @@ package data
 
 import "time"
 
-// Insert a measurement sample in the db
+// SetSample inserts a measurement sample in the db
 func (db *Database) SetSample(sample *Sample) {
 	// Create a write transaction
 	txn := db.Txn(true)
@@ -18,10 +18,9 @@ func (db *Database) SetSample(sample *Sample) {
 	txn.Commit()
 }
 
-// Set a sample to not a number "NaN"
+// SetSampleNaN sets a sample to not a number "NaN"
 // E.g. a ping failed, RTT has to be set to NaN
 func (db *Database) SetSampleNaN(id uint32) {
-	//(from string, to string, sampleKey int64) {
 	// Create a write transaction
 	txn := db.Txn(true)
 	defer txn.Abort()
@@ -42,7 +41,7 @@ func (db *Database) SetSampleNaN(id uint32) {
 	txn.Commit()
 }
 
-// Get a measurement sample by id
+// GetSample returns a measurement sample by id
 func (db *Database) GetSample(id uint32) *Sample {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -57,7 +56,7 @@ func (db *Database) GetSample(id uint32) *Sample {
 	return raw.(*Sample)
 }
 
-// Delete a measurement sample by id
+// DeleteSample deletes a measurement sample by id
 func (db *Database) DeleteSample(id uint32) {
 	txn := db.Txn(true)
 	defer txn.Abort()
@@ -70,7 +69,7 @@ func (db *Database) DeleteSample(id uint32) {
 	txn.Commit()
 }
 
-// Get the timestamp from a measurment sample by id
+// GetSampleTs returns the timestamp from a measurement sample by id
 func (db *Database) GetSampleTs(id uint32) int64 {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -85,7 +84,7 @@ func (db *Database) GetSampleTs(id uint32) int64 {
 	return raw.(*Sample).Ts
 }
 
-// Get all measurement samples in db
+// GetSampleList returns all measurement samples in db
 func (db *Database) GetSampleList() []*Sample {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -100,3 +99,4 @@ func (db *Database) GetSampleList() []*Sample {
 	}
 	return samples
 }
+g
