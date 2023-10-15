@@ -63,7 +63,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 
 		// save join-requested node as node in mesh
 		node.Name = res.MyName
-		m.database.SetNode(data.Convert(node, NODE_OK))
+		m.database.SetNode(data.Convert(node, NodeOk))
 		//m.clients[GetId(node)].conn.Close()
 
 		log.Infow("Joined mesh", "name", node.Name, "target", node.Target)
@@ -74,7 +74,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 			Name:   m.setupConfig.Name,
 			Target: m.setupConfig.JoinAddress,
 		}) {
-			m.database.SetNode(data.Convert(node, NODE_OK))
+			m.database.SetNode(data.Convert(node, NodeOk))
 		}
 	}
 	return true, true
@@ -223,7 +223,7 @@ func (m *Mesh) Rtt() {
 	var opts []grpc.DialOption
 	var rttStartH, rttStart, rttEnd time.Time
 
-	nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
+	nodes := m.database.GetRandomNodeListByState(NodeOk, 1)
 	if nodes == nil {
 		log.Debugw("No Node suitable for RTT measurement")
 		return

@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Main struct for the mesh
+// Mesh represents a mesh of canary bots.
 type Mesh struct {
 	// Mesh in-memory datastore
 	database data.Database
@@ -46,25 +46,31 @@ type Mesh struct {
 	joinRoutineDone    bool
 }
 
-// A newly discoverd node in the mesh
+// NodeDiscovered represents a newly discoverd node in the mesh
 type NodeDiscovered struct {
 	NewNode *meshv1.Node
 	From    uint32 // TODO change to name
 }
 
-// Create a canary bot & mesh with the desired configuration
+// CreateCanaryMesh create a canary bot & mesh with the desired configuration
 // Use a pre-defined routineConfig with e.g. StandardProductionRoutineConfig()
-// and define your mesh setip configuration
+// and define your mesh setup configuration. The mesh will be created with the
+// following steps:
 //
-// - Logger will be initialised
+// - Logger will be initialized
+//
 // - setupConfig will be checked
+//
 // - DB will be created
-// - Mesh will be initialised
+//
+// - Mesh will be initialized
+//
 // - Routines will be started
+//
 // - API will be created
 func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupConfiguration) {
 	// prepare logging
-	logger := getLogger(setupConfig.Debug, setupConfig.ListenAddress)
+	logger := setupLogger(setupConfig.Debug, setupConfig.ListenAddress)
 	defer logger.Sync()
 
 	// SetupConfiguration
@@ -75,7 +81,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 	// Get info from configuration combination
 	setupConfig.checkDefaults(logger)
 
-	// prepare in-memory database
+	// prepare the in-memory database
 	database, err := data.NewMemDB(logger.Named("database"))
 	if err != nil {
 		logger.Fatalf("Could not create Memory Database (MemDB) - Error: %+v", err)
@@ -104,7 +110,7 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 		}
 	}()
 
-	// start main mesh functionality
+	// start the main mesh functionality
 	logger.Infow("Starting mesh routines")
 	go m.channelRoutines()
 	go m.timerRoutines()
@@ -130,9 +136,9 @@ func CreateCanaryMesh(routineConfig *RoutineConfiguration, setupConfig *SetupCon
 	}
 }
 
-// Routines that will be executed by timer interrupts.
+// timeRoutines initializes the go routines that will be executed by timer interrupts.
 // In the startup phase, just the joinRoutine timer will run
-// After joining a mesh or a node is joining all routines
+// After joining a mesh or a node is joining the mesh all routines
 // will be started and the join Routine will stop.
 func (m *Mesh) timerRoutines() {
 	// Timer to send ping to node
@@ -174,7 +180,7 @@ func (m *Mesh) timerRoutines() {
 			log.Debugw("Starting")
 
 			// get a random healthy node
-			nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
+			nodes := m.database.GetRandomNodeListByState(NodeOk, 1)
 			if len(nodes) == 0 {
 				log.Debugw("No Node connected or all nodes in timeout")
 				break
@@ -187,30 +193,30 @@ func (m *Mesh) timerRoutines() {
 			log := m.logger.Named("sample-routine")
 			log.Debugw("Starting push sample routine to random nodes", "amount", m.routineConfig.PushSampleToAmount)
 
-			// get random, configured amount of healty nodes
-			nodes := m.database.GetRandomNodeListByState(NODE_OK, m.routineConfig.PushSampleToAmount)
+			// get random, configured number of health nodes
+			nodes := m.database.GetRandomNodeListByState(NodeOk, m.routineConfig.PushSampleToAmount)
 			if len(nodes) == 0 {
 				log.Debugw("No node connected or all nodes in timeout")
 				break
 			}
 
-			// push own measurement samples to choosen nodes
+			// push own measurement samples to chosen nodes
 			for _, node := range nodes {
 				log.Debugw("Pushing samples", "node", node.Name)
 				go m.retryPushSample(node.Convert())
 			}
 
 		case <-m.cleanupTicker.C:
-			// check if node is timed-out and over maxAge
+			// check if the node is timed-out and over maxAge
 			if m.setupConfig.CleanupNodes {
-				for _, node := range m.database.GetNodeListByState(NODE_DEAD) {
+				for _, node := range m.database.GetNodeListByState(NodeDead) {
 					if time.Unix(node.StateChangeTs, 0).Before(time.Now().Add(-1 * m.routineConfig.CleanupMaxAge)) {
 						m.logger.Infow("Delete old node", "node", node.Name, "maxAge", m.routineConfig.CleanupMaxAge.String())
 					}
 				}
 			}
 
-			// check if sample is over maxAge
+			// check if the sample is over maxAge
 			if m.setupConfig.CleanupSamples {
 				for _, sample := range m.database.GetSampleList() {
 					if time.Unix(sample.Ts, 0).Before(time.Now().Add(-1 * m.routineConfig.CleanupMaxAge)) {
@@ -248,49 +254,50 @@ func (m *Mesh) timerRoutines() {
 	}
 }
 
-// Routines that will be executed by event/channel interrupts.
+// channelRoutines initializes the go routines that will be executed by event/channel interrupts.
 // Events:
+//
 // - nodeDiscovered: A new node is discovered in the mesh
 func (m *Mesh) channelRoutines() {
 	for {
 		select {
 		case nodeDiscovered := <-m.newNodeDiscovered:
-			log := m.logger.Named("discovery-routine")
+			logger := m.logger.Named("discovery-routine")
 			// quit joinMesh routine if discovery is received before
 			if !m.joinRoutineDone {
 				m.quitJoinRoutine <- true
 			}
 			if m.database.GetNodeByName(nodeDiscovered.NewNode.Name).Id != 0 {
-				log.Info("Node is rejoining node")
-				m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
+				logger.Info("Node is rejoining node")
+				m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NodeOk))
 				break
 			}
 
-			log.Info("Node joined - new node")
-			log.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.routineConfig.BroadcastToAmount)
+			logger.Info("Node joined - new node")
+			logger.Debugw("Starting discovery broadcast routine to random nodes", "amount", m.routineConfig.BroadcastToAmount)
 
-			nodes := m.database.GetRandomNodeListByState(NODE_OK, m.routineConfig.BroadcastToAmount, nodeDiscovered.From)
+			nodes := m.database.GetRandomNodeListByState(NodeOk, m.routineConfig.BroadcastToAmount, nodeDiscovered.From)
 
 			if len(nodes) == 0 {
-				log.Debug("Stopping routine prematurely - no more known nodes")
+				logger.Debug("Stopping routine prematurely - no more known nodes")
 				break
 			}
 
 			for _, node := range nodes {
-				log.Infow("Sending Discovery Broadcast", "node", node.Name)
+				logger.Infow("Sending Discovery Broadcast", "node", node.Name)
 				go m.NodeDiscovery(node.Convert(), nodeDiscovered.NewNode)
 			}
 
-			m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NODE_OK))
+			m.database.SetNode(data.Convert(nodeDiscovered.NewNode, NodeOk))
 		}
 	}
 }
 
-// Will call the ping method with set retry configuration.
+// retryPing Will call the ping method with set retry configuration.
 // Database nodes and samples will be updated.
 func (m *Mesh) retryPing(node *meshv1.Node) {
-	log := m.logger.Named("ping-routine")
-	log.Debugw("Retry routine started", "node", node.Name)
+	logger := m.logger.Named("ping-routine")
+	logger.Debugw("Retry routine started", "node", node.Name)
 
 	// start retry ping logic
 	for r := 1; r <= m.routineConfig.PingRetryAmount; r++ {
@@ -299,14 +306,14 @@ func (m *Mesh) retryPing(node *meshv1.Node) {
 
 		// Ping ok; return
 		if err == nil {
-			m.database.SetNode(data.Convert(node, NODE_OK))
-			log.Infow("Ping ok", "node", node.Name, "attempt", r)
+			m.database.SetNode(data.Convert(node, NodeOk))
+			logger.Infow("Ping ok", "node", node.Name, "attempt", r)
 			return
 		}
 
 		// Ping failed
-		log.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String(), "retry in", m.routineConfig.PingRetryDelay.String(), "attempt", r)
-		m.database.SetNode(data.Convert(node, NODE_TIMEOUT))
+		logger.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String(), "retry in", m.routineConfig.PingRetryDelay.String(), "attempt", r)
+		m.database.SetNode(data.Convert(node, NodeTimeout))
 		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RttRequest}))
 		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RttTotal}))
 
@@ -314,26 +321,26 @@ func (m *Mesh) retryPing(node *meshv1.Node) {
 			// Retry delay
 			time.Sleep(m.routineConfig.PingRetryDelay)
 		} else {
-			m.database.SetNode(data.Convert(node, NODE_DEAD))
+			m.database.SetNode(data.Convert(node, NodeDead))
 		}
 	}
 
 	// Retry limit reached
-	log.Infow("Retry limit reached", "node", node.Name, "limit", m.routineConfig.PingRetryAmount)
-	log.Warnw("Removing node from mesh", "node", node.Name)
+	logger.Infow("Retry limit reached", "node", node.Name, "limit", m.routineConfig.PingRetryAmount)
+	logger.Warnw("Removing node from mesh", "node", node.Name)
 	m.database.DeleteNode(GetId(node))
 
-	// Check if node was last node in mesh
+	// Check if node was the last node in mesh
 	if len(m.database.GetNodeList()) == 0 {
 		m.restartJoinRoutine <- true
 	}
 }
 
-// Will call the pushSample method with set retry configuration.
+// retryPushSample will call the pushSample method with set retry configuration.
 // Database nodes and samples will be updated.
 func (m *Mesh) retryPushSample(node *meshv1.Node) {
-	log := m.logger.Named("sample-routine")
-	log.Debugw("Push sample retry routine started", "node", node.Name)
+	logger := m.logger.Named("sample-routine")
+	logger.Debugw("Push sample retry routine started", "node", node.Name)
 
 	// start retry pushSample logic
 	for r := 1; r <= m.routineConfig.PushSampleRetryAmount; r++ {
@@ -342,13 +349,13 @@ func (m *Mesh) retryPushSample(node *meshv1.Node) {
 
 		// Push ok; return
 		if err == nil {
-			log.Debug("Push samples ok")
+			logger.Debug("Push samples ok")
 			m.database.SetNodeTsNow(GetId(node))
 			return
 		}
 
 		// Push failed
-		log.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "atempt", r)
+		logger.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "atempt", r)
 
 		if r != m.routineConfig.PushSampleRetryAmount {
 			// Retry delay
@@ -357,20 +364,18 @@ func (m *Mesh) retryPushSample(node *meshv1.Node) {
 	}
 }
 
-// Get the ID of a node
-// Hash integer value of the target field (name of node)
+// GetId returns the hashed ID of a node
 func GetId(n *meshv1.Node) uint32 {
 	return h.Hash(n.Target)
 }
 
-// Get the ID of a sample
-// Hash integer value of the concatenated From, To and Key field
+// GetSampleId returns the ID of a sample
 func GetSampleId(p *meshv1.Sample) uint32 {
 	return h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
 }
 
-// Setup the Logger
-func getLogger(debug bool, pprofAddress string) *zap.SugaredLogger {
+// setupLogger setups the Logger
+func setupLogger(debug bool, pprofAddress string) *zap.SugaredLogger {
 	if debug {
 		// starting pprof for memory and cpu analysis
 		go func() {

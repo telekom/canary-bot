@@ -1,7 +1,7 @@
 package mesh
 
 const (
-	NODE_OK      = 1
-	NODE_TIMEOUT = 2
-	NODE_DEAD    = 3
+	NodeOk      = 1
+	NodeTimeout = 2
+	NodeDead    = 3
 )
