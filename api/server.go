@@ -50,11 +50,11 @@ type Configuration struct {
 	CaCert         []byte
 }
 
-// List all measured samples
-func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
-	samples := []*apiv1.Sample{}
+// ListSamples lists all measured samples of the canary
+func (a *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
+	var samples []*apiv1.Sample
 
-	for _, sample := range b.data.GetSampleList() {
+	for _, sample := range a.data.GetSampleList() {
 		samples = append(samples, &apiv1.Sample{
 			From:  sample.From,
 			To:    sample.To,
@@ -69,11 +69,11 @@ func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSa
 	}), nil
 }
 
-// List all known nodes in mesh
-func (b *Api) ListNodes(ctx context.Context, req *connect.Request[apiv1.ListNodesRequest]) (*connect.Response[apiv1.ListNodesResponse], error) {
-	nodes := []string{b.config.NodeName}
+// ListNodes lists all known nodes in mesh
+func (a *Api) ListNodes(ctx context.Context, req *connect.Request[apiv1.ListNodesRequest]) (*connect.Response[apiv1.ListNodesResponse], error) {
+	nodes := []string{a.config.NodeName}
 
-	for _, node := range b.data.GetNodeList() {
+	for _, node := range a.data.GetNodeList() {
 		nodes = append(nodes, node.Name)
 	}
 
@@ -92,6 +92,7 @@ func getOpenAPIHandler() http.Handler {
 	return http.FileServer(http.FS(subFS))
 }
 
+// StartApi starts the API server of the canary
 func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger) error {
 	a := &Api{
 		data:   data,
@@ -123,7 +124,6 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 	var tlsClientCredentials credentials.TransportCredentials
 	if tlsCredentials != nil {
 		tlsClientCredentials, err = h.LoadClientTLSCredentials(config.CaCertPath, config.CaCert)
-
 	}
 
 	if err != nil {
@@ -133,11 +133,11 @@ func StartApi(data data.Database, config *Configuration, log *zap.SugaredLogger)
 		opts = append(opts, grpc.WithTransportCredentials(tlsClientCredentials))
 	}
 
-	addr := config.Address + ":" + strconv.FormatInt(config.Port, 10)
+	addr := fmt.Sprintf("%s:%s", config.Address, strconv.FormatInt(config.Port, 10))
 	// Note: this will succeed asynchronously, once we've started the server below.
 	conn, err := grpc.DialContext(
 		context.Background(),
-		"dns:///"+addr,
+		fmt.Sprintf("dns:///%s", addr),
 		opts...,
 	)
 	if err != nil {
