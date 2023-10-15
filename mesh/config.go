@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Configuration for the timer- and channelRoutines
+// RoutineConfiguration holds the configuration for the timer- and channelRoutines
 type RoutineConfiguration struct {
 	// Timeout for every grpc request
 	RequestTimeout time.Duration
@@ -38,7 +38,7 @@ type RoutineConfiguration struct {
 	RttInterval time.Duration
 }
 
-// Configuration how the bot can connect to the mesh etc.
+// SetupConfiguration holds the configuration how the bot can connect to the mesh
 type SetupConfiguration struct {
 	// remote target
 	Targets []string
@@ -73,7 +73,7 @@ type SetupConfiguration struct {
 	DebugGrpc bool
 }
 
-// Use standard configuration parameters for your production
+// StandardProductionRoutineConfig is the standard configuration parameters for a production environment
 func StandardProductionRoutineConfig() *RoutineConfiguration {
 	return &RoutineConfiguration{
 		RequestTimeout:        time.Second * 3,
@@ -93,9 +93,11 @@ func StandardProductionRoutineConfig() *RoutineConfiguration {
 	}
 }
 
-// Default setter method
-// - get external IP as listenAddress & joinAdress
-// - generate API token
+// setDefaults is the default setter method for the setup configuration. It does the following:
+//
+// - gets external IP as listenAddress & joinAddress
+//
+// - generates the API token
 func (setupConfig *SetupConfiguration) setDefaults(logger *zap.SugaredLogger) {
 	// get IP of this node if no bind-address and/or domain set
 	externalIP, err := h.ExternalIP()
@@ -125,8 +127,8 @@ func (setupConfig *SetupConfiguration) setDefaults(logger *zap.SugaredLogger) {
 	}
 }
 
-// Check the default configuration to discover TLS mode.
-// Check if name and target(s) are set in config.
+// checkDefaults checks the default configuration to discover the TLS mode.
+// Checks if name and target(s) are set in config.
 func (setupConfig *SetupConfiguration) checkDefaults(logger *zap.SugaredLogger) {
 	// check TLS mode
 	if setupConfig.CaCert != nil || len(setupConfig.CaCertPath) > 0 {
