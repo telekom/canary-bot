@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"regexp"
 	"time"
 
@@ -52,7 +52,7 @@ func ExternalIP() (string, error) {
 			return ip.String(), nil
 		}
 	}
-	return "", errors.New("Could not get outbound IP. Are you connected to the network?")
+	return "", errors.New("could not get outbound IP. Are you connected to the network")
 }
 
 func LookupIP(url string) (string, error) {
@@ -93,7 +93,7 @@ const charset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 	"0123456789"
 
-var seededRand *rand.Rand = rand.New(
+var seededRand = rand.New(
 	rand.NewSource(time.Now().UnixNano()))
 
 func stringWithCharset(length int, charset string) string {
@@ -108,7 +108,7 @@ func GenerateRandomToken(length int) string {
 	return stringWithCharset(length, charset)
 }
 
-//------------------
+// ------------------
 func Equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -121,22 +121,22 @@ func Equal(a, b []string) bool {
 	return true
 }
 
-// TLS -----------------
-func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credentials.TransportCredentials, error) {
+// LoadClientTLSCredentials loads a certificate from disk and returns the credentials
+func LoadClientTLSCredentials(cacertPaths []string, cacertB64 []byte) (credentials.TransportCredentials, error) {
 	// Load certificate of the CA who signed server certificate
 
 	certPool := x509.NewCertPool()
 
-	if len(caCert_Paths) > 0 {
-		for _, path := range caCert_Paths {
-			pemServerCA, err := ioutil.ReadFile(path)
+	if len(cacertPaths) > 0 {
+		for _, path := range cacertPaths {
+			pemServerCA, err := os.ReadFile(path)
 			if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
 				return nil, fmt.Errorf("Failed to add server ca certificate")
 			}
 		}
-	} else if caCert_b64 != nil {
+	} else if cacertB64 != nil {
 		var pemServerCA []byte
-		_, err := base64.StdEncoding.Decode(pemServerCA, caCert_b64)
+		_, err := base64.StdEncoding.Decode(pemServerCA, cacertB64)
 		if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
 			return nil, fmt.Errorf("Failed to add server ca certificate")
 		}
@@ -152,21 +152,21 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 	return credentials.NewTLS(config), nil
 }
 
-func LoadServerTLSCredentials(serverCert_path string, serverKey_path string, serverCert_b64 []byte, serverKey_b64 []byte) (*tls.Config, error) {
+func LoadServerTLSCredentials(servercertPath string, serverkeyPath string, servercertB64 []byte, serverkeyB64 []byte) (*tls.Config, error) {
 	// Load server certificate and key //credentials.NewTLS(config)
 	var serverCert tls.Certificate
 	var err error
 
-	if serverCert_path != "" && serverKey_path != "" {
-		serverCert, err = tls.LoadX509KeyPair(serverCert_path, serverKey_path)
-	} else if serverCert_b64 != nil && serverKey_b64 != nil {
+	if servercertPath != "" && serverkeyPath != "" {
+		serverCert, err = tls.LoadX509KeyPair(servercertPath, serverkeyPath)
+	} else if servercertB64 != nil && serverkeyB64 != nil {
 		var cert []byte
 		var key []byte
-		_, err = base64.StdEncoding.Decode(cert, serverCert_b64)
+		_, err = base64.StdEncoding.Decode(cert, servercertB64)
 		if err != nil {
 			return nil, err
 		}
-		_, err = base64.StdEncoding.Decode(key, serverCert_b64)
+		_, err = base64.StdEncoding.Decode(key, servercertB64)
 		serverCert, err = tls.X509KeyPair(cert, key)
 	} else {
 		return nil, errors.New("Neither server cert and key path nor base64 encoded cert and key set")
