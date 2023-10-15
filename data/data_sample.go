@@ -99,4 +99,3 @@ func (db *Database) GetSampleList() []*Sample {
 	}
 	return samples
 }
-g
