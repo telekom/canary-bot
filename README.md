@@ -4,14 +4,14 @@ HTTP-based (gRPC) connectivity monitoring from node to node.
 
 Run one Canary Bot on each distributed host to create a mesh.
 
-Each bot will gather information about the connectivity to eachother.
+Each bot will gather information about the connectivity to each other.
 
-Current measurment samples:
+Current measurement samples:
 
 - Round-trip-time with TCP, TLS handshake and request
 - Round-trip-time TCP request
 
-Every bot exposes an API (REST and RPC) for consuming measurment samples.
+Every bot exposes an API (REST and RPC) for consuming measurement samples.
 
 Each bot will provide samples from every node.
 
@@ -37,15 +37,14 @@ docker image pull mtr.devops.telekom.de/caas/canary-bot:latest
 docker image pull mtr.devops.telekom.de/caas/canary-bot:${VERSION}
 ````
 
-
-
 # Usage
 
-Run `cbot --help` for futher information.
+Run `cbot --help` for further information.
 
 ## The Network
 
-To separate different szenarios like starting the bot on a dedicated host or running it on a Kubernetes cluster we introduced the `join-address` and `listen-address` flag.
+To separate different scenarios like starting the bot on a dedicated host or running it on a Kubernetes cluster we
+introduced the `join-address` and `listen-address` flag.
 
 JoinMesh Request to tell the joining mesh 'who I am' - the public connection point:
 `join-address` (optional; eg. test.de:443, localhost:8080) > external IP (form network interface)
@@ -53,19 +52,20 @@ JoinMesh Request to tell the joining mesh 'who I am' - the public connection poi
 Listen server address & port - the listening settings for the grpc server:
 `listen-address` (optional; eg. 10.34.0.10, localhost) > external IP (form network interface)
 
-### 1. Szenario: Kubernetes cluster
+### 1. Scenario: Kubernetes cluster
 
-[eade-terminating TLS - 2 targets - different join & listen address for Kubernetes szenario]
+[edge-terminating TLS - 2 targets - different join & listen address for Kubernetes scenario]
 
-The kubernetes ingress controller will listen on bird-owl.com on port 443 (https). It redirects incomming http request via a service to the running pod listening to localhost on port 8080.
+The kubernetes ingress controller will listen on bird-owl.com on port 443 (https).
+It redirects incoming http request via a service to the running pod listening to localhost on port 8080.
 
 ```
 cbot --name owl --join-address bird-owl.com:443 --listen-adress localhost --listen-port 8080 --api-port 8081 -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer
 ```
 
-### 2. Szenario: Dedicated host
+### 2. Scenario: Dedicated host
 
-[mutal TLS - 2 targets - join & listen-address is external IP from network interface]
+[mutual TLS - 2 targets - join & listen-address is external IP from network interface]
 
 The bot is running on a public ip (x.x.x.x) and listens on port 8081 for mesh requests.
 
@@ -87,7 +87,7 @@ E.g. in a Kubenetes Cluster with NGINX Ingress Controller
 - Server: nothing todo, TLS is terminated before reaching server
 - use: `ca-cert` flag
 
-3. e2e Mutal TLS
+3. e2e Mutual TLS
 
 - Client: needs CA Cert
 - Server: needs Server Cert & Server Key
@@ -96,7 +96,6 @@ E.g. in a Kubenetes Cluster with NGINX Ingress Controller
 # Mesh
 
 ![the mesh](mesh.drawio.png)
-
 
 # Logic
 
