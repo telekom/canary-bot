@@ -307,8 +307,8 @@ func (m *Mesh) retryPing(node *meshv1.Node) {
 		// Ping failed
 		log.Infow("Ping failed", "node", node.Name, "timeout", m.routineConfig.RequestTimeout.String(), "retry in", m.routineConfig.PingRetryDelay.String(), "attempt", r)
 		m.database.SetNode(data.Convert(node, NODE_TIMEOUT))
-		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RTT_REQUEST}))
-		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RTT_TOTAL}))
+		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RttRequest}))
+		m.database.SetSampleNaN(GetSampleId(&meshv1.Sample{From: m.setupConfig.Name, To: node.Name, Key: data.RttTotal}))
 
 		if r != m.routineConfig.PingRetryAmount {
 			// Retry delay

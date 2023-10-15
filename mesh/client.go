@@ -19,7 +19,7 @@ type MeshClient struct {
 	client meshv1.MeshServiceClient
 }
 
-//bool NameUnique
+// bool NameUnique
 func (m *Mesh) Join(targets []string) (bool, bool) {
 	log := m.logger.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
@@ -287,7 +287,7 @@ func (m *Mesh) Rtt() {
 		&data.Sample{
 			From:  m.setupConfig.Name,
 			To:    node.Name,
-			Key:   data.RTT_TOTAL,
+			Key:   data.RttTotal,
 			Value: strconv.FormatInt(rttH.Nanoseconds(), 10),
 			Ts:    time.Now().Unix(),
 		},
@@ -297,7 +297,7 @@ func (m *Mesh) Rtt() {
 		&data.Sample{
 			From:  m.setupConfig.Name,
 			To:    node.Name,
-			Key:   data.RTT_REQUEST,
+			Key:   data.RttRequest,
 			Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
 			Ts:    time.Now().Unix(),
 		},
