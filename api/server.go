@@ -56,11 +56,11 @@ type Configuration struct {
 	CaCert         []byte
 }
 
-// List all measured samples
-func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
+// ListSamples lists all measured samples of the canary
+func (a *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSampleRequest]) (*connect.Response[apiv1.ListSampleResponse], error) {
 	samples := []*apiv1.Sample{}
 
-	for _, sample := range b.data.GetSampleList() {
+	for _, sample := range a.data.GetSampleList() {
 		samples = append(samples, &apiv1.Sample{
 			From:  sample.From,
 			To:    sample.To,
@@ -75,11 +75,11 @@ func (b *Api) ListSamples(ctx context.Context, req *connect.Request[apiv1.ListSa
 	}), nil
 }
 
-// List all known nodes in mesh
-func (b *Api) ListNodes(ctx context.Context, req *connect.Request[apiv1.ListNodesRequest]) (*connect.Response[apiv1.ListNodesResponse], error) {
-	nodes := []string{b.config.NodeName}
+// ListNodes lists all known nodes in mesh
+func (a *Api) ListNodes(ctx context.Context, req *connect.Request[apiv1.ListNodesRequest]) (*connect.Response[apiv1.ListNodesResponse], error) {
+	nodes := []string{a.config.NodeName}
 
-	for _, node := range b.data.GetNodeList() {
+	for _, node := range a.data.GetNodeList() {
 		nodes = append(nodes, node.Name)
 	}
 

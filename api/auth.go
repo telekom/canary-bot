@@ -30,7 +30,7 @@ import (
 	connect "github.com/bufbuild/connect-go"
 )
 
-// http auth handler
+// NewAuthHandler returns a handler for HTTP authorization
 func (a *Api) NewAuthHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		splitToken := strings.Split(r.Header.Get("Authorization"), "Bearer")
@@ -47,7 +47,7 @@ func (a *Api) NewAuthHandler(h http.Handler) http.Handler {
 		// check if token is correct
 		for _, t := range a.config.Tokens {
 			if authToken == t {
-				a.log.Infow("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "succeded")
+				a.log.Infow("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "succeeded")
 				h.ServeHTTP(w, r)
 				return
 			}
@@ -58,37 +58,36 @@ func (a *Api) NewAuthHandler(h http.Handler) http.Handler {
 	})
 }
 
-// grpc auth interceptor
+// NewAuthInterceptor returns grpc auth interceptor to handle authorization
 func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
-		return connect.UnaryFunc(
-			func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-				splitToken := strings.Split(req.Header().Get("Authorization"), "Bearer")
-				// check if token is set
-				if len(splitToken) != 2 {
-					a.log.Warnw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed", "reason", "no bearer token")
-					return nil, connect.NewError(
-						connect.CodeUnauthenticated,
-						errors.New("no token provided"),
-					)
-				}
-
-				// get token
-				authToken := strings.TrimSpace(splitToken[1])
-
-				// check if token is correct
-				for _, t := range a.config.Tokens {
-					if authToken == t {
-						a.log.Infow("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeded")
-						return next(ctx, req)
-					}
-				}
-				a.log.Warnw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed", "reason", "invalid token")
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			splitToken := strings.Split(req.Header().Get("Authorization"), "Bearer")
+			// check if token is set
+			if len(splitToken) != 2 {
+				a.log.Warnw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed", "reason", "no bearer token")
 				return nil, connect.NewError(
 					connect.CodeUnauthenticated,
-					errors.New("auth failed"),
+					errors.New("no token provided"),
 				)
-			})
+			}
+
+			// get token
+			authToken := strings.TrimSpace(splitToken[1])
+
+			// check if token is correct
+			for _, t := range a.config.Tokens {
+				if authToken == t {
+					a.log.Infow("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeeded")
+					return next(ctx, req)
+				}
+			}
+			a.log.Warnw("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "failed", "reason", "invalid token")
+			return nil, connect.NewError(
+				connect.CodeUnauthenticated,
+				errors.New("auth failed"),
+			)
+		}
 	}
-	return connect.UnaryInterceptorFunc(interceptor)
+	return interceptor
 }

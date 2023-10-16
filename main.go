@@ -50,17 +50,17 @@ Features:
  - auto re-join
  - http based communication (gRPC)
  - partly based on the gossip protocol standard
- - mutal TLS, edge-terminating TLS, no TLS
+ - mutual TLS, edge-terminating TLS, no TLS
 
 All flags can be set by environment variables. Please use the Prefix ` + envPrefix + `.
 Multiple targets can be set comma-separated.
 
 Example 1
-- eade-terminating TLS - 2 targets - different join & listen address for Kubernetes szenario -
-cbot --name owl --join-address bird-owl.com:443 --listen-adress localhost --listen-port 8080 --api-port 8081 -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer
+- edge-terminating TLS - 2 targets - different join & listen address for Kubernetes scenario -
+cbot --name owl --join-address bird-owl.com:443 --listen-address localhost --listen-port 8080 --api-port 8081 -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer
 
 Example 2
-- mutal TLS - 2 targets - join & listen-address is external IP from network interface
+- mutual TLS - 2 targets - join & listen-address is external IP from network interface
 cbot --name swan -t bird-goose.com:443 -t bird-eagle.net:8080 --ca-cert-path path/to/cert.cer --server-cert-path path/to/cert.cer --server-key ZWFzdGVyZWdn 
 `,
 	PersistentPreRun: initSettings,
@@ -72,7 +72,7 @@ var (
 	set      mesh.SetupConfiguration
 )
 
-// Will create the
+// run is the main function of the canary-bot which executes the mesh creation.
 func run(cmd *cobra.Command, args []string) {
 	mesh.CreateCanaryMesh(mesh.StandardProductionRoutineConfig(), &set)
 }
@@ -85,8 +85,8 @@ func main() {
 }
 
 // The init function is the very first function that ist running,
-// even before the main is executed.\n
-// The default mesh settings will me set.
+// even before the main is executed.
+// The default mesh settings will be set.
 // All cmd flags will be defined.
 func init() {
 	defaults = mesh.SetupConfiguration{
@@ -112,7 +112,7 @@ func init() {
 	// Targets for joining
 	cmd.Flags().StringSliceVarP(&set.Targets, "target", "t", defaults.Targets, "Comma-seperated or multi-flag list of targets for joining the mesh.\nFormat: [IP|ADDRESS]:PORT")
 
-	// ssttings for this node
+	// settings for this node
 	cmd.Flags().StringVarP(&set.Name, "name", "n", defaults.Name, "Name of the node, has to be unique in mesh (mandatory)")
 	cmd.Flags().StringVar(&set.ListenAddress, "listen-address", defaults.ListenAddress, "Address or IP the server of the node will bind to; eg. 0.0.0.0, localhost (default outbound IP of the network interface)")
 	cmd.Flags().Int64Var(&set.ListenPort, "listen-port", defaults.ListenPort, "Listening port of this node")
@@ -136,16 +136,16 @@ func init() {
 
 	// Cleanup database mode
 	cmd.Flags().BoolVar(&set.CleanupNodes, "cleanup-nodes", defaults.CleanupNodes, "Enable cleanup mode for nodes (default disabled)")
-	cmd.Flags().BoolVar(&set.CleanupSamples, "cleanup-samples", defaults.CleanupSamples, "Enable cleanup mode for measurment samples (default disabled)")
+	cmd.Flags().BoolVar(&set.CleanupSamples, "cleanup-samples", defaults.CleanupSamples, "Enable cleanup mode for measurement samples (default disabled)")
 
 	// Logging mode
 	cmd.Flags().BoolVar(&set.Debug, "debug", defaults.Debug, "Set logging to debug mode")
 	cmd.Flags().BoolVar(&set.DebugGrpc, "debug-grpc", defaults.DebugGrpc, "Enable more logging for grpc")
 }
 
-// Before the run function gets executed
+// Before the run function gets executed,
 // all env variables need to be loaded (bindEnvToFlags).
-// Viper gets initialised.
+// Viper gets initialized.
 func initSettings(cmd *cobra.Command, args []string) {
 	v := viper.New()
 	// Set environment variable prefix
@@ -156,7 +156,7 @@ func initSettings(cmd *cobra.Command, args []string) {
 	bindEnvToFlags(cmd, v)
 }
 
-// Environment variables will be bind to cmd flags,
+// Environment variables will be bind to cmd flags
 // if the flag is not set.
 // Env vars have a defined prefix.
 func bindEnvToFlags(cmd *cobra.Command, v *viper.Viper) {

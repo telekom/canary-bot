@@ -119,8 +119,8 @@ func Test_shuffleNodes(t *testing.T) {
 	maxTries := 20
 	firstId := nodes[0].Id
 	for i := 0; i < maxTries; i++ {
-		shuffeledNodes := shuffleNodes(nodes)
-		if shuffeledNodes[0].Id != firstId {
+		shuffledNodes := shuffleNodes(nodes)
+		if shuffledNodes[0].Id != firstId {
 			return
 		}
 	}

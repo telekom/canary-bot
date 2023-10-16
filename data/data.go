@@ -35,59 +35,55 @@ import (
 
 // Sample keys
 const (
-	STATE       = 1
-	RTT_TOTAL   = 2
-	RTT_REQUEST = 3
+	State      = 1
+	RttTotal   = 2
+	RttRequest = 3
 )
 
-// Sample keys map for mapping back to string
+// SampleName holds the mapping of the sample keys
 var SampleName = map[int64]string{
-	STATE:       "state",
-	RTT_TOTAL:   "rtt_total",
-	RTT_REQUEST: "rtt_request",
+	State:      "state",
+	RttTotal:   "rtt_total",
+	RttRequest: "rtt_request",
 }
 
 // Database that is used by the mesh.
 // It will hold node and sample data.
-// It is a in-memory database. A logger
+// It is an in-memory database. A logger
 // is provided.
 type Database struct {
 	*memdb.MemDB
 	log *zap.SugaredLogger
 }
 
-// A database node will have an Id
-// witch is a unique integer.
-// The name is unique in the node db
-// schema. The target defines the address:port
-// of the node. The state is the status of
-// the node. LastSampleTs will be updated if
-// a new sample gets measured. Is used by
-// the clean up routine.
+// Node represents a member of the canary mesh.
 type Node struct {
-	Id            uint32
-	Name          string
-	Target        string
-	State         int
+	// Id is the unique ID of the node
+	Id uint32
+	// Name is the unique name of the node
+	Name string
+	// Target defines the address:port of the node
+	Target string
+	// State is the state of the node
+	State int
+	// StateChangeTs is the timestamp when the state changed last time
 	StateChangeTs int64
 }
 
-// A sample represents a measurement
-// sample from a node to another node (e.g. round-trip-time).
-// The key is the sample name and the value
-// the measurement.
+// Sample represents a measurement of the canary mesh.
 type Sample struct {
-	Id    uint32
-	From  string
-	To    string
-	Key   int64
+	Id   uint32
+	From string
+	To   string
+	// Key is the sample name
+	Key int64
+	// Value is the measurement value
 	Value string
 	Ts    int64
 }
 
-// Will create a in-memory database and
-// a looger. The database will be created with
-// 2 schemas: node, sample
+// NewMemDB Will create an in-memory database and a logger.
+// The database will be created with 2 schemas: node, sample
 func NewMemDB(logger *zap.SugaredLogger) (Database, error) {
 	defer logger.Sync()
 
@@ -198,8 +194,7 @@ func Convert(n *meshv1.Node, state int) *Node {
 	}
 }
 
-// Get the id of a database node.
-// The id is a hash integer
+// GetId returns the id of a database node.
 func GetId(n *Node) uint32 {
 	id, err := h.Hash(n.Target)
 	if err != nil {
@@ -209,8 +204,7 @@ func GetId(n *Node) uint32 {
 	return id
 }
 
-// Get the id of a given sample.
-// The id is a hash integer
+// GetSampleId returns the id of a given sample.
 func GetSampleId(p *Sample) uint32 {
 	id, err := h.Hash(p.From + p.To + strconv.FormatInt(p.Key, 10))
 	if err != nil {

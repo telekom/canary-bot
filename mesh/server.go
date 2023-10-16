@@ -40,7 +40,7 @@ import (
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 )
 
-// MeshServer for incoming requests
+// MeshServer handles incoming requests
 type MeshServer struct {
 	meshv1.UnimplementedMeshServiceServer
 	metrics metric.Metrics
@@ -51,12 +51,12 @@ type MeshServer struct {
 	newNodeDiscovered chan NodeDiscovered
 }
 
-// JoinMesh allows a node to join the mesh
+// JoinMesh handles the join mesh request from a node wishing to join the mesh
 func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.JoinMeshResponse, error) {
 	s.log.Infow("New join mesh request", "node", req.Name)
-	// Check if name of joining node is unique in mesh, let join if state is not ok, let join if target is same
+	// Check if the name of joining node is unique in mesh, let join if state is not ok, let join if target is same
 	dbnode := s.data.GetNodeByName(req.Name)
-	if (dbnode.Id != 0 && dbnode.State == NODE_OK && dbnode.Target != req.Target) || *s.name == req.Name {
+	if (dbnode.Id != 0 && dbnode.State == NodeOk && dbnode.Target != req.Target) || *s.name == req.Name {
 		return &meshv1.JoinMeshResponse{NameUnique: false, MyName: *s.name, Nodes: []*meshv1.Node{}}, nil
 	}
 	s.newNodeDiscovered <- NodeDiscovered{req, GetId(req)}
@@ -69,21 +69,21 @@ func (s *MeshServer) JoinMesh(ctx context.Context, req *meshv1.Node) (*meshv1.Jo
 	return &res, nil
 }
 
-// PC if node pings
+// Ping handles the ping request from a node in the mesh
 func (s *MeshServer) Ping(ctx context.Context, req *meshv1.Node) (*emptypb.Empty, error) {
 	if req != nil {
-		s.data.SetNode(data.Convert(req, NODE_OK))
+		s.data.SetNode(data.Convert(req, NodeOk))
 	}
 	return &emptypb.Empty{}, nil
 }
 
-// RPC if new node is discovered in the mesh
+// NodeDiscovery handles the node discovery request from a node in the mesh
 func (s *MeshServer) NodeDiscovery(ctx context.Context, req *meshv1.NodeDiscoveryRequest) (*emptypb.Empty, error) {
 	s.newNodeDiscovered <- NodeDiscovered{req.NewNode, GetId(req.IAmNode)}
 	return &emptypb.Empty{}, nil
 }
 
-// RPC if samples will be sent by node in mesh
+// PushSamples adds samples to the database if they are newer than the current sample
 func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emptypb.Empty, error) {
 	for _, sample := range req.Samples {
 		if sample.Ts > s.data.GetSampleTs(GetSampleId(sample)) {
@@ -100,14 +100,12 @@ func (s *MeshServer) PushSamples(ctx context.Context, req *meshv1.Samples) (*emp
 	return &emptypb.Empty{}, nil
 }
 
-// PRC if node measures rount-trip-time
-// Do not add any functionality that will effect the RTT
+// Rtt handles the round trip time request from a node in the mesh
 func (s *MeshServer) Rtt(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
 	return &emptypb.Empty{}, nil
 }
 
-// Start the mesh server.
-// Setup gRPC and TLS.
+// StartServer starts the mesh server, by setting up gRPC and TLS.
 func (m *Mesh) StartServer() error {
 	meshServer := &MeshServer{
 		log:               m.logger.Named("server"),
@@ -122,7 +120,7 @@ func (m *Mesh) StartServer() error {
 		grpc_zap.ReplaceGrpcLoggerV2(meshServer.log.Named("grpc").Desugar())
 	}
 
-	// address the server will be bound to
+	// the address the server will be bound to
 	listenAdd := m.setupConfig.ListenAddress + ":" + strconv.FormatInt(m.setupConfig.ListenPort, 10)
 
 	// start TCP listener
@@ -132,7 +130,7 @@ func (m *Mesh) StartServer() error {
 		return err
 	}
 
-	opts := []grpc.ServerOption{}
+	var opts []grpc.ServerOption
 
 	// TLS
 	tlsCredentials, err := h.LoadServerTLSCredentials(
