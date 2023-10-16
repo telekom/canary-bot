@@ -55,6 +55,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// StartApi starts the API server of the canary
 func StartApi(data data.Database, metrics metric.Metrics, config *Configuration, log *zap.SugaredLogger) error {
 	a := &Api{
 		data:    data,
