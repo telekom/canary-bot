@@ -28,16 +28,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/credentials"
 	"hash/fnv"
 	"log"
 	"math/big"
 	"net"
 	"os"
-	"regexp"
-
-	"google.golang.org/grpc/credentials"
 )
 
+// ExternalIP returns the external IP of the host
 func ExternalIP() (string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -76,33 +75,6 @@ func ExternalIP() (string, error) {
 	return "", errors.New("Could not get outbound IP. Are you connected to the network?")
 }
 
-func LookupIP(url string) (string, error) {
-	ips, err := net.LookupIP(url)
-	if err != nil {
-		return "", err
-	}
-	if len(ips) == 0 {
-		return "", nil
-	}
-	return ips[0].String(), nil
-}
-
-func LookupAddress(ip string) (string, error) {
-	addr, err := net.LookupAddr(ip)
-	if err != nil {
-		return "", err
-	}
-	if len(addr) == 0 {
-		return "", nil
-	}
-	return addr[0], nil
-}
-
-func ValidateAddress(domain string) bool {
-	RegExp := regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
-	return RegExp.MatchString(domain)
-}
-
 func Hash(s string) (uint32, error) {
 	h := fnv.New32a()
 	_, err := h.Write([]byte(s))
@@ -112,7 +84,7 @@ func Hash(s string) (uint32, error) {
 	return h.Sum32(), nil
 }
 
-// ------------------
+// charset is the alphabet for the random string generation
 const charset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 	"0123456789"
@@ -138,27 +110,15 @@ func GenerateRandomToken(length int64) string {
 	return token
 }
 
-// ------------------
-func Equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// TLS -----------------
-func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credentials.TransportCredentials, error) {
+// LoadClientTLSCredentials loads a certificate from disk and creates
+// a transport credentials object for gRPC usage.
+func LoadClientTLSCredentials(cacertPaths []string, cacertB64 []byte) (credentials.TransportCredentials, error) {
 	// Load certificate of the CA who signed server certificate
 
 	certPool := x509.NewCertPool()
 
-	if len(caCert_Paths) > 0 {
-		for _, path := range caCert_Paths {
+	if len(cacertPaths) > 0 {
+		for _, path := range cacertPaths {
 			/* #nosec G304*/
 			pemServerCA, err := os.ReadFile(path)
 			if err != nil {
@@ -168,9 +128,9 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 				return nil, fmt.Errorf("Failed to add server ca certificate")
 			}
 		}
-	} else if caCert_b64 != nil {
+	} else if cacertB64 != nil {
 		var pemServerCA []byte
-		_, err := base64.StdEncoding.Decode(pemServerCA, caCert_b64)
+		_, err := base64.StdEncoding.Decode(pemServerCA, cacertB64)
 		if err != nil || !certPool.AppendCertsFromPEM(pemServerCA) {
 			return nil, fmt.Errorf("Failed to add server ca certificate")
 		}
@@ -187,21 +147,23 @@ func LoadClientTLSCredentials(caCert_Paths []string, caCert_b64 []byte) (credent
 	return credentials.NewTLS(config), nil
 }
 
-func LoadServerTLSCredentials(serverCert_path string, serverKey_path string, serverCert_b64 []byte, serverKey_b64 []byte) (*tls.Config, error) {
+// LoadServerTLSCredentials loads a certificate from disk and creates
+// a transport credentials object for gRPC usage.
+func LoadServerTLSCredentials(servercertPath string, serverkeyPath string, servercertB64 []byte, serverkeyB64 []byte) (*tls.Config, error) {
 	// Load server certificate and key //credentials.NewTLS(config)
 	var serverCert tls.Certificate
 	var err error
 
-	if serverCert_path != "" && serverKey_path != "" {
-		serverCert, err = tls.LoadX509KeyPair(serverCert_path, serverKey_path)
-	} else if serverCert_b64 != nil && serverKey_b64 != nil {
+	if servercertPath != "" && serverkeyPath != "" {
+		serverCert, err = tls.LoadX509KeyPair(servercertPath, serverkeyPath)
+	} else if servercertB64 != nil && serverkeyB64 != nil {
 		var cert []byte
 		var key []byte
-		_, err = base64.StdEncoding.Decode(cert, serverCert_b64)
+		_, err = base64.StdEncoding.Decode(cert, servercertB64)
 		if err != nil {
 			return nil, err
 		}
-		_, err = base64.StdEncoding.Decode(key, serverCert_b64)
+		_, err = base64.StdEncoding.Decode(key, servercertB64)
 		serverCert, err = tls.X509KeyPair(cert, key)
 	} else {
 		return nil, errors.New("Neither server cert and key path nor base64 encoded cert and key set")
