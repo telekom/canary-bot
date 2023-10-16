@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// Insert node in database
+// SetNode inserts a node in database
 func (db *Database) SetNode(node *Node) {
 	// Create a write transaction
 	txn := db.Txn(true)
@@ -41,8 +41,8 @@ func (db *Database) SetNode(node *Node) {
 	txn.Commit()
 }
 
-// Set timestamp of a node to now.
-// The node will be selected by id.
+// SetNodeTsNow sets the timestamp of a node to now.
+// Id will select the node.
 func (db *Database) SetNodeTsNow(id uint32) {
 	txn := db.Txn(true)
 	defer txn.Abort()
@@ -62,7 +62,7 @@ func (db *Database) SetNodeTsNow(id uint32) {
 	txn.Commit()
 }
 
-// Delete a node by its id
+// DeleteNode deletes a node by its id
 func (db *Database) DeleteNode(id uint32) {
 	txn := db.Txn(true)
 	defer txn.Abort()
@@ -75,7 +75,7 @@ func (db *Database) DeleteNode(id uint32) {
 	txn.Commit()
 }
 
-// Get a node by its id
+// GetNode returns a node by its id
 func (db *Database) GetNode(id uint32) *Node {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -90,7 +90,7 @@ func (db *Database) GetNode(id uint32) *Node {
 	return raw.(*Node)
 }
 
-//G Get a node by its name
+// GetNodeByName returns a node by its name
 func (db *Database) GetNodeByName(name string) *Node {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -105,7 +105,7 @@ func (db *Database) GetNodeByName(name string) *Node {
 	return raw.(*Node)
 }
 
-// Get all nodes
+// GetNodeList returns all nodes
 func (db *Database) GetNodeList() []*Node {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -121,7 +121,7 @@ func (db *Database) GetNodeList() []*Node {
 	return nodes
 }
 
-// Get all nodes with a specific state
+// GetNodeListByState get all nodes with a specific state
 func (db *Database) GetNodeListByState(byState int) []*Node {
 	txn := db.Txn(false)
 	defer txn.Abort()
@@ -139,8 +139,8 @@ func (db *Database) GetNodeListByState(byState int) []*Node {
 	return nodes
 }
 
-// Get a specific amount of random nodes by state
-// Use a list of node ids (without) that should be removed from the list
+// GetRandomNodeListByState get a specific number of random nodes by state
+// The without defines which nodes should be excluded from the selection
 func (db *Database) GetRandomNodeListByState(byState int, amountOfNodes int, without ...uint32) []*Node {
 	nodes := db.GetNodeListByState(byState)
 
@@ -148,7 +148,7 @@ func (db *Database) GetRandomNodeListByState(byState int, amountOfNodes int, wit
 		return nodes
 	}
 
-	// remove "without" nodes from result list
+	// remove "without" nodes from the result
 	for _, id := range without {
 		nodes = removeNodeByIdFromSlice(nodes, id)
 	}
@@ -157,10 +157,10 @@ func (db *Database) GetRandomNodeListByState(byState int, amountOfNodes int, wit
 		return nodes
 	}
 
-	// shuffel nodes array randomly
+	// shuffle the nodes-array randomly
 	nodes = shuffleNodes(nodes)
 
-	// check if list is already smaller or equalt to requested amout
+	// check if the list is already smaller or equal to the requested amount
 	if len(nodes) <= amountOfNodes {
 		return nodes
 	}
@@ -168,9 +168,8 @@ func (db *Database) GetRandomNodeListByState(byState int, amountOfNodes int, wit
 	return nodes[:amountOfNodes]
 }
 
-// shuffel a slice of nodes
+// shuffle a slice of nodes
 func shuffleNodes(nodes []*Node) []*Node {
-	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(nodes), func(i, j int) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]
 	})
