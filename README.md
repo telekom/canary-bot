@@ -132,7 +132,7 @@ Have look at the struct `RoutineConfiguration` and the func `StandardProductionR
 
 ### 2. SetupConfiguration (`mesh/config.go@SetupConfiguration`)
 
-Have look at the struct for detailed information. Please checkout the [documentation](#documentation) below.
+Have a look at the struct for detailed information. Please check out the [documentation](#documentation) below.
 
 ## Code of Conduct
 
@@ -142,7 +142,10 @@ This project has adopted the [Contributor Covenant](https://www.contributor-cove
 
 We decided to apply *English* as the primary project language.
 
-Consequently, all content will be made available primarily in English. We also ask all interested people to use English as language to create issues, in their code (comments, documentation etc.) and when you send requests to us. The application itself and all end-user facing content will be made available in other languages as needed.
+Consequently, all content will be made available primarily in English.
+We also ask all interested people to use English as the preferred language to create issues,
+in their code (comments, documentation, etc.) and when you send requests to us.
+The application itself and all end-user facing content will be made available in other languages as needed.
 
 ## Documentation
 
@@ -277,7 +280,7 @@ Use the offered CLI options or use environment variables with a 'MESH' prefix e.
 
 Canary data will be exposed at `/metrics`. Authorization is required.
 Use the token passed to the canary by flag `--token` for authorization (if you did not set the token yourself, it will be generated and exposed to stdout).
-Currently the `node_count` and histogram metrics (`rtt` buckets) from the requested pod are available.
+Currently, the `node_count` and histogram metrics (`rtt` buckets) from the requested pod are available.
 
 ## Support and Feedback
 

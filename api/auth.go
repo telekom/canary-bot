@@ -47,7 +47,7 @@ func (a *Api) NewAuthHandler(h http.Handler) http.Handler {
 		// check if token is correct
 		for _, t := range a.config.Tokens {
 			if authToken == t {
-				a.log.Infow("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "succeded")
+				a.log.Infow("Request", "host", r.Header.Get("X-Forwarded-Host"), "auth", "succeeded")
 				h.ServeHTTP(w, r)
 				return
 			}
@@ -78,7 +78,7 @@ func (a *Api) NewAuthInterceptor() connect.UnaryInterceptorFunc {
 			// check if token is correct
 			for _, t := range a.config.Tokens {
 				if authToken == t {
-					a.log.Infow("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeded")
+					a.log.Infow("Request", "host", req.Header().Get("X-Forwarded-Host"), "auth", "succeeded")
 					return next(ctx, req)
 				}
 			}

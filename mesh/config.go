@@ -116,7 +116,7 @@ func StandardProductionRoutineConfig() *RoutineConfiguration {
 }
 
 // Default setter method
-// - get external IP as listenAddress & joinAdress
+// - get external IP as listenAddress & joinAddress
 // - generate API token
 func (setupConfig *SetupConfiguration) setDefaults(logger *zap.SugaredLogger) {
 	// get IP of this node if no bind-address and/or domain set
@@ -154,7 +154,7 @@ func (setupConfig *SetupConfiguration) checkDefaults(logger *zap.SugaredLogger) 
 	if setupConfig.CaCert != nil || len(setupConfig.CaCertPath) > 0 {
 		if (setupConfig.ServerCert != nil || setupConfig.ServerCertPath != "") &&
 			(setupConfig.ServerKey != nil || setupConfig.ServerKeyPath != "") {
-			logger.Info("Mesh is set to mutal TLS mode")
+			logger.Info("Mesh is set to mutual TLS mode")
 		} else {
 			logger.Info("Mesh is set to edge-terminated TLS mode")
 		}

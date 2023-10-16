@@ -175,10 +175,10 @@ func Test_GetSampleId(t *testing.T) {
 			name: "Normal sample",
 			sample: &Sample{
 				From: "Eagle",
-				To:   "Gose",
+				To:   "Goose",
 				Key:  1,
 			},
-			expectedId: value(h.Hash("EagleGose1")),
+			expectedId: value(h.Hash("EagleGoose1")),
 		},
 		{
 			name:       "Empty samples",

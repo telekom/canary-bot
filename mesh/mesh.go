@@ -382,7 +382,7 @@ func (m *Mesh) retryPushSample(node *meshv1.Node) {
 		}
 
 		// Push failed
-		logger.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "atempt", r)
+		logger.Debugw("Push failed", "node", node.Name, "retry in", m.routineConfig.PushSampleRetryDelay.String(), "attempt", r)
 
 		if r != m.routineConfig.PushSampleRetryAmount {
 			// Retry delay
