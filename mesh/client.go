@@ -42,7 +42,7 @@ type MeshClient struct {
 	client meshv1.MeshServiceClient
 }
 
-// Join is used by the node to join the mesh network
+// Join tries to join the mesh by communicating with the targets.
 func (m *Mesh) Join(targets []string) (bool, bool) {
 	log := m.logger.Named("join-routine")
 	var res *meshv1.JoinMeshResponse
@@ -88,7 +88,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 
 		// save join-requested node as node in mesh
 		node.Name = res.MyName
-		m.database.SetNode(data.Convert(node, NODE_OK))
+		m.database.SetNode(data.Convert(node, NodeOk))
 
 		log.Infow("Joined mesh", "name", node.Name, "target", node.Target)
 		break
@@ -98,7 +98,7 @@ func (m *Mesh) Join(targets []string) (bool, bool) {
 			Name:   m.setupConfig.Name,
 			Target: m.setupConfig.JoinAddress,
 		}) {
-			m.database.SetNode(data.Convert(node, NODE_OK))
+			m.database.SetNode(data.Convert(node, NodeOk))
 		}
 	}
 	return true, true
@@ -142,7 +142,7 @@ func (m *Mesh) NodeDiscovery(toNode *meshv1.Node, newNode *meshv1.Node) {
 			},
 		})
 	if err != nil {
-		log.Warnf("Could not start request to client - skip Node Discover Request", "node", toNode.Name, "error", err)
+		log.Warnw("Could not start request to client - skip Node Discover Request", "node", toNode.Name, "error", err)
 	}
 	return
 }
@@ -252,7 +252,7 @@ func (m *Mesh) Rtt() {
 	var opts []grpc.DialOption
 	var rttStartH, rttStart, rttEnd time.Time
 
-	nodes := m.database.GetRandomNodeListByState(NODE_OK, 1)
+	nodes := m.database.GetRandomNodeListByState(NodeOk, 1)
 	if nodes == nil {
 		log.Debugw("No Node suitable for RTT measurement")
 		return
@@ -293,7 +293,7 @@ func (m *Mesh) Rtt() {
 		return
 	}
 
-	// start RTT without TCP handshake
+	// start RTT without a TCP handshake
 	rttStart = time.Now()
 
 	// send request
