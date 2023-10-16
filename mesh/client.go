@@ -312,15 +312,15 @@ func (m *Mesh) Rtt() {
 	rtt := rttEnd.Sub(rttStart)
 
 	// save metrics
-	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RTT_TOTAL], node.Name).Observe(rttH.Seconds())
-	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RTT_REQUEST], node.Name).Observe(rtt.Seconds())
+	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RttTotal], node.Name).Observe(rttH.Seconds())
+	m.metrics.GetRtt().WithLabelValues(data.SampleName[data.RttRequest], node.Name).Observe(rtt.Seconds())
 
 	// save samples
 	m.database.SetSample(
 		&data.Sample{
 			From:  m.setupConfig.Name,
 			To:    node.Name,
-			Key:   data.RTT_TOTAL,
+			Key:   data.RttTotal,
 			Value: strconv.FormatInt(rttH.Nanoseconds(), 10),
 			Ts:    time.Now().Unix(),
 		},
@@ -330,7 +330,7 @@ func (m *Mesh) Rtt() {
 		&data.Sample{
 			From:  m.setupConfig.Name,
 			To:    node.Name,
-			Key:   data.RTT_REQUEST,
+			Key:   data.RttRequest,
 			Value: strconv.FormatInt(rtt.Nanoseconds(), 10),
 			Ts:    time.Now().Unix(),
 		},
