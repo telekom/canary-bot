@@ -17,6 +17,9 @@
   <a href="#licensing">Licensing</a>
 </p>
 
+> ⚠️ The `canary-bot` development has been ended on 31, Dec 2023.
+> Please check out the new [sparrow](https://github.com/telekom/sparrow) project.
+
 Measurement of network status information of distributed systems in an HTTP-based communicating mesh.
 
 ## About this component
